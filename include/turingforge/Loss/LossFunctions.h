@@ -15,23 +15,6 @@
 #include "Scaled.h"
 #include "Weighted.h"
 
-// Fallback to unary functions
-auto deriv(DistanceLoss const& loss, double output, double target) {
-    return loss(output - target);
-}
-
-auto deriv2(DistanceLoss const& loss, double output, double target) {
-    return loss(output - target);
-}
-
-auto deriv(MarginLoss const& loss, double output, double target) {
-    return loss(output * target);
-}
-
-auto deriv2(MarginLoss const& loss, double output, double target) {
-    return loss(output * target);
-}
-
 // Aggregated behaviour
 
 /*

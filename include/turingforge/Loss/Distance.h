@@ -19,72 +19,74 @@
  */
 
 struct LPDistLoss : DistanceLoss {
-    double p{};
+    double p;
+
+    explicit LPDistLoss(double p) : p(p) {}
 
     constexpr double operator()(double difference) const override {
         return std::pow(std::abs(difference), p);
     }
+
+    [[nodiscard]] double deriv(double difference) const {
+        if (difference == 0) {
+            return double(0);
+        } else {
+            return p * difference * std::pow(std::abs(difference), p - 2);
+        }
+    }
+
+    [[nodiscard]] double deriv2(double difference) const {
+        if (difference == 0) {
+            return double(0);
+        } else {
+            return (std::pow(p, 2) - p) * std::pow(std::abs(difference), p) / std::pow(difference, 2);
+        }
+    }
+
+    constexpr bool isminimizable() override {
+        return true;
+    }
+
+    constexpr bool issymmetric() override {
+        return true;
+    }
+
+    [[nodiscard]] constexpr bool isdifferentiable() override {
+        return p > 1;
+    }
+
+    [[nodiscard]] constexpr bool isdifferentiable(double at) override {
+        return p > 1 || at != 0;
+    }
+
+    [[nodiscard]] constexpr bool istwicedifferentiable() override {
+        return p > 1;
+    }
+
+    [[nodiscard]] constexpr bool istwicedifferentiable(double at) override {
+        return p > 1 || at != 0;
+    }
+
+    [[nodiscard]] constexpr bool islipschitzcont() override {
+        return p == 1;
+    }
+
+    [[nodiscard]] constexpr bool islocallylipschitzcont() override {
+        return p >= 1;
+    }
+
+    [[nodiscard]] constexpr bool isconvex() override {
+        return p >= 1;
+    }
+
+    [[nodiscard]] constexpr bool isstrictlyconvex() override {
+        return p > 1;
+    }
+
+    [[nodiscard]] constexpr bool isstronglyconvex() override {
+        return p >= 2;
+    }
 };
-
-auto deriv(const LPDistLoss& loss, double difference) {
-    if (difference == 0) {
-        return double(0);
-    } else {
-        return loss.p * difference * std::pow(std::abs(difference), loss.p - 2);
-    }
-}
-
-auto deriv2(const LPDistLoss& loss, double difference) {
-    if (difference == 0) {
-        return double(0);
-    } else {
-        return (std::pow(loss.p, 2) - loss.p) * std::pow(std::abs(difference), loss.p) / std::pow(difference, 2);
-    }
-}
-
-bool isminimizable(const LPDistLoss&) {
-    return true;
-}
-
-bool issymmetric(const LPDistLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const LPDistLoss& loss) {
-    return loss.p > 1;
-}
-
-bool isdifferentiable(const LPDistLoss& loss, double) {
-    return loss.p > 1;
-}
-
-bool istwicedifferentiable(const LPDistLoss& loss) {
-    return loss.p > 1;
-}
-
-bool istwicedifferentiable(const LPDistLoss& loss, double) {
-    return loss.p > 1;
-}
-
-bool islipschitzcont(const LPDistLoss& loss) {
-    return loss.p == 1;
-}
-
-bool islocallylipschitzcont(const LPDistLoss& loss) {
-    return loss.p >= 1;
-}
-
-bool isconvex(const LPDistLoss& loss) {
-    return loss.p >= 1;
-}
-
-bool isstrictlyconvex(const LPDistLoss& loss) {
-    return loss.p > 1;
-}
-
-bool isstronglyconvex(const LPDistLoss& loss) {
-    return loss.p >= 2;
-}
 
 /*
  * L1DistLoss : DistanceLoss
@@ -98,51 +100,53 @@ bool isstronglyconvex(const LPDistLoss& loss) {
  * ```
  */
 
-struct L1DistLoss : DistanceLoss {
+struct L1DistLoss : LPDistLoss {
+    explicit L1DistLoss(double p = 1) : LPDistLoss(p) {}
+
     constexpr double operator()(double difference) const override {
         return std::abs(difference);
     }
+
+    constexpr double deriv(double difference) override {
+        return std::signbit(difference) ? -1 : 1;
+    }
+
+    constexpr double deriv2(double) override {
+        return double(0);
+    }
+
+    constexpr bool isdifferentiable() override {
+        return false;
+    }
+
+    constexpr bool isdifferentiable(double at) override {
+        return at != 0;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    constexpr bool istwicedifferentiable(double at) override {
+        return at != 0;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
 };
-
-auto deriv(const L1DistLoss&, double difference) {
-    return std::signbit(difference) ? -1 : 1;
-}
-
-auto deriv2(const L1DistLoss&, double) {
-    return double(0);
-}
-
-bool isdifferentiable(const L1DistLoss&) {
-    return false;
-}
-
-bool isdifferentiable(const L1DistLoss&, double at) {
-return at != 0;
-}
-
-bool istwicedifferentiable(const L1DistLoss&) {
-    return false;
-}
-
-bool istwicedifferentiable(const L1DistLoss&, double at) {
-return at != 0;
-}
-
-bool islipschitzcont(const L1DistLoss&) {
-    return true;
-}
-
-bool isconvex(const L1DistLoss&) {
-    return true;
-}
-
-bool isstrictlyconvex(const L1DistLoss&) {
-    return false;
-}
-
-bool isstronglyconvex(const L1DistLoss&) {
-    return false;
-}
 
 /*
  * L2DistLoss : DistanceLoss
@@ -156,51 +160,52 @@ bool isstronglyconvex(const L1DistLoss&) {
  * ```
  */
 
-struct L2DistLoss : DistanceLoss {
+struct L2DistLoss : LPDistLoss {
+    explicit L2DistLoss(double p = 2) : LPDistLoss(p) {}
     constexpr double operator()(double difference) const override {
         return std::abs(difference) * std::abs(difference);
     }
+
+    constexpr double deriv(double difference) override {
+        return 2.0 * difference;
+    }
+
+    constexpr double deriv2(double) override {
+        return 2.0;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return false;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return true;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return true;
+    }
 };
-
-auto deriv(const L2DistLoss&, double difference) {
-    return 2.0 * difference;
-}
-
-auto deriv2(const L2DistLoss&, double) {
-    return 2.0;
-}
-
-bool isdifferentiable(const L2DistLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const L2DistLoss&, double) {
-    return true;
-}
-
-bool istwicedifferentiable(const L2DistLoss&) {
-    return true;
-}
-
-bool istwicedifferentiable(const L2DistLoss&, double) {
-    return true;
-}
-
-bool islipschitzcont(const L2DistLoss&) {
-    return false;
-}
-
-bool isconvex(const L2DistLoss&) {
-    return true;
-}
-
-bool isstrictlyconvex(const L2DistLoss&) {
-    return true;
-}
-
-bool isstronglyconvex(const L2DistLoss&) {
-    return true;
-}
 
 /*
  * PeriodicLoss : DistanceLoss
@@ -225,47 +230,47 @@ struct PeriodicLoss : DistanceLoss {
     constexpr double operator()(double difference) const override {
         return 1 - std::cos(difference * k);
     }
+
+    [[nodiscard]] double deriv(double difference) const {
+        return k * std::sin(difference * k);
+    }
+
+    [[nodiscard]] double deriv2(double difference) const {
+        return std::pow(k, 2) * std::cos(difference * k);
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return false;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
 };
-
-auto deriv(const PeriodicLoss& loss, double difference) {
-    return loss.k * std::sin(difference * loss.k);
-}
-
-auto deriv2(const PeriodicLoss& loss, double difference) {
-    return std::pow(loss.k, 2) * std::cos(difference * loss.k);
-}
-
-bool isdifferentiable(const PeriodicLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const PeriodicLoss&, double) {
-    return true;
-}
-
-bool istwicedifferentiable(const PeriodicLoss&) {
-    return true;
-}
-
-bool istwicedifferentiable(const PeriodicLoss&, double) {
-    return true;
-}
-
-bool islipschitzcont(const PeriodicLoss&) {
-    return true;
-}
-
-bool isconvex(const PeriodicLoss&) {
-    return false;
-}
-
-bool isstrictlyconvex(const PeriodicLoss&) {
-    return false;
-}
-
-bool isstronglyconvex(const PeriodicLoss&) {
-    return false;
-}
 
 /*
  * HuberLoss : DistanceLoss
@@ -298,55 +303,55 @@ struct HuberLoss : DistanceLoss {
             return (d * abs_diff) - static_cast<double>(0.5) * std::pow(d, 2);  // linear
         }
     }
-};
 
-auto deriv(const HuberLoss& loss, double difference) {
-    if (std::abs(difference) <= loss.d) {
-        return difference;  // quadratic
-    } else {
-        return loss.d * static_cast<double>(std::signbit(difference) ? -1 : 1);  // linear
+    [[nodiscard]] auto deriv(double difference) const {
+        if (std::abs(difference) <= d) {
+            return difference;  // quadratic
+        } else {
+            return d * static_cast<double>(std::signbit(difference) ? -1 : 1);  // linear
+        }
     }
-}
 
-auto deriv2(const HuberLoss& loss, double difference) {
-    return std::abs(difference) <= loss.d ? double(1) : double(0);
-}
+    [[nodiscard]] auto deriv2(double difference) const {
+        return std::abs(difference) <= d ? double(1) : double(0);
+    }
 
-bool isdifferentiable(const HuberLoss&) {
-    return true;
-}
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
 
-bool isdifferentiable(const HuberLoss&, double) {
-    return true;
-}
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
 
-bool istwicedifferentiable(const HuberLoss&) {
-    return false;
-}
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
 
-bool istwicedifferentiable(const HuberLoss& loss, double at) {
-    return at != std::abs(loss.d);
-}
+    [[nodiscard]] bool istwicedifferentiable(double at) const {
+        return at != std::abs(d);
+    }
 
-bool islipschitzcont(const HuberLoss&) {
-    return true;
-}
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
 
-bool isconvex(const HuberLoss&) {
-    return true;
-}
+    constexpr bool isconvex() override {
+        return true;
+    }
 
-bool isstrictlyconvex(const HuberLoss&) {
-    return false;
-}
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
 
-bool isstronglyconvex(const HuberLoss&) {
-    return false;
-}
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
 
-bool issymmetric(const HuberLoss&) {
-    return true;
-}
+    constexpr bool issymmetric() override {
+        return true;
+    }
+};
 
 /*
  * L1EpsilonInsLoss : DistanceLoss
@@ -374,51 +379,55 @@ struct L1EpsilonInsLoss : DistanceLoss {
     constexpr double operator()(double difference) const override {
         return std::max(double(0), std::abs(difference) - eps);
     }
+
+    [[nodiscard]] double deriv(double difference) const {
+        return std::abs(difference) <= eps ? double(0) : static_cast<double>(std::signbit(difference) ? -1 : 1);
+    }
+
+    constexpr double deriv2(double) override {
+        return double(0);
+    }
+
+    constexpr bool issymmetric() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return false;
+    }
+
+    [[nodiscard]] bool isdifferentiable(double at) const {
+        return std::abs(at) != eps;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    [[nodiscard]] bool istwicedifferentiable(double at) const {
+        return std::abs(at) != eps;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
 };
 
-auto deriv(const L1EpsilonInsLoss& loss, double difference) {
-    return std::abs(difference) <= loss.eps ? double(0) : static_cast<double>(std::signbit(difference) ? -1 : 1);
-}
-
-auto deriv2(const L1EpsilonInsLoss& loss, double) {
-    return double(0);
-}
-
-bool issymmetric(const L1EpsilonInsLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const L1EpsilonInsLoss&) {
-    return false;
-}
-
-bool isdifferentiable(const L1EpsilonInsLoss& loss, double at) {
-    return std::abs(at) != loss.eps;
-}
-
-bool istwicedifferentiable(const L1EpsilonInsLoss&) {
-    return false;
-}
-
-bool istwicedifferentiable(const L1EpsilonInsLoss& loss, double at) {
-    return std::abs(at) != loss.eps;
-}
-
-bool islipschitzcont(const L1EpsilonInsLoss&) {
-    return true;
-}
-
-bool isconvex(const L1EpsilonInsLoss&) {
-    return true;
-}
-
-bool isstrictlyconvex(const L1EpsilonInsLoss&) {
-    return false;
-}
-
-bool isstronglyconvex(const L1EpsilonInsLoss&) {
-    return false;
-}
+struct EpsilonInsLoss : L1EpsilonInsLoss {
+    explicit EpsilonInsLoss(double eps) : L1EpsilonInsLoss(eps) {}
+};
 
 /*
  * L2EpsilonInsLoss : DistanceLoss
@@ -446,52 +455,52 @@ struct L2EpsilonInsLoss : DistanceLoss {
     constexpr double operator()(double difference) const override {
         return std::abs(std::pow(std::max(double(0), std::abs(difference) - eps), 2));
     }
+
+    [[nodiscard]] double deriv(double difference) const {
+        auto abs_diff = std::abs(difference);
+        return abs_diff <= eps ? double(0) : double(2) * std::copysign(abs_diff - eps, difference);
+    }
+
+    [[nodiscard]] double deriv2(double difference) const {
+        return std::abs(difference) <= eps ? double(0) : double(2);
+    }
+
+    constexpr bool issymmetric() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    [[nodiscard]] bool istwicedifferentiable(double at) const {
+        return std::abs(at) != eps;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return false;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return true;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return true;
+    }
 };
-
-auto deriv(const L2EpsilonInsLoss& loss, double difference) {
-    auto abs_diff = std::abs(difference);
-    return abs_diff <= loss.eps ? double(0) : double(2) * std::copysign(abs_diff - loss.eps, difference);
-}
-
-auto deriv2(const L2EpsilonInsLoss& loss, double difference) {
-    return std::abs(difference) <= loss.eps ? double(0) : double(2);
-}
-
-bool issymmetric(const L2EpsilonInsLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const L2EpsilonInsLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const L2EpsilonInsLoss&, double) {
-    return true;
-}
-
-bool istwicedifferentiable(const L2EpsilonInsLoss&) {
-    return false;
-}
-
-bool istwicedifferentiable(const L2EpsilonInsLoss& loss, double at) {
-    return std::abs(at) != loss.eps;
-}
-
-bool islipschitzcont(const L2EpsilonInsLoss&) {
-    return false;
-}
-
-bool isconvex(const L2EpsilonInsLoss&) {
-    return true;
-}
-
-bool isstrictlyconvex(const L2EpsilonInsLoss&) {
-    return true;
-}
-
-bool isstronglyconvex(const L2EpsilonInsLoss&) {
-    return true;
-}
 
 /*
  * LogitDistLoss : DistanceLoss
@@ -509,57 +518,57 @@ struct LogitDistLoss : DistanceLoss {
         auto er = std::exp(difference);
         return -std::log(double(4)) - difference + 2 * std::log(double(1) + er);
     }
+
+    constexpr double deriv(double difference) override {
+        return std::tanh(difference / double(2));
+    }
+
+    constexpr double deriv2(double difference) override {
+        auto er = std::exp(difference);
+        return double(2) * er / std::abs(std::pow(double(1) + er, 2));
+    }
+
+    constexpr bool issymmetric() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return true;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
 };
-
-auto deriv(const LogitDistLoss&, double difference) {
-    return std::tanh(difference / double(2));
-}
-
-auto deriv2(const LogitDistLoss&, double difference) {
-    auto er = std::exp(difference);
-    return double(2) * er / std::abs(std::pow(double(1) + er, 2));
-}
-
-bool issymmetric(const LogitDistLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const LogitDistLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const LogitDistLoss&, double) {
-    return true;
-}
-
-bool istwicedifferentiable(const LogitDistLoss&) {
-    return true;
-}
-
-bool istwicedifferentiable(const LogitDistLoss&, double) {
-    return true;
-}
-
-bool islipschitzcont(const LogitDistLoss&) {
-    return true;
-}
-
-bool isconvex(const LogitDistLoss&) {
-    return true;
-}
-
-bool isstrictlyconvex(const LogitDistLoss&) {
-    return true;
-}
-
-bool isstronglyconvex(const LogitDistLoss&) {
-    return false;
-}
 
 /*
  * QuantileLoss : DistanceLoss
  *
- * The distance-based quantile loss, also known as pinball loss,
+ * The distance-based quantilealso known as pinball loss,
  * can be used to estimate conditional tau-quantiles.
  * It is Lipschitz continuous and convex, but not strictly convex.
  * Furthermore, it is symmetric if and only if `tau = 1/2`.
@@ -574,58 +583,58 @@ struct QuantileLoss : DistanceLoss {
 
     explicit QuantileLoss(double tau) : tau(tau) {}
 
-    constexpr double operator()(const QuantileLoss& loss, double diff) {
-        return diff * (diff > 0 ? 1 - loss.tau : -loss.tau);
+    constexpr double operator()(double diff) {
+        return diff * (diff > 0 ? 1 - tau : -tau);
+    }
+
+    [[nodiscard]] double deriv(double diff) const {
+        return (diff > 0 ? 1 - tau : -tau);
+    }
+
+    constexpr double deriv2(double) override {
+        return 0.0;
+    }
+
+    [[nodiscard]] bool issymmetric() const {
+        return tau == 0.5;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return false;
+    }
+
+    constexpr bool isdifferentiable(double at) override {
+        return at != 0.0;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    constexpr bool istwicedifferentiable(double at) override {
+        return at != 0.0;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    static bool islipschitzcont_deriv(const QuantileLoss&) {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
     }
 };
-
-double deriv(const QuantileLoss& loss, double diff) {
-    return (diff > 0 ? 1 - loss.tau : -loss.tau);
-}
-
-double deriv2(const QuantileLoss&, double) {
-    return 0.0;
-}
-
-bool issymmetric(const QuantileLoss& loss) {
-    return loss.tau == 0.5;
-}
-
-bool isdifferentiable(const QuantileLoss&) {
-    return false;
-}
-
-bool isdifferentiable(const QuantileLoss&, double at) {
-    return at != 0.0;
-}
-
-bool istwicedifferentiable(const QuantileLoss&) {
-    return false;
-}
-
-bool istwicedifferentiable(const QuantileLoss&, double at) {
-    return at != 0.0;
-}
-
-bool islipschitzcont(const QuantileLoss&) {
-    return true;
-}
-
-bool islipschitzcont_deriv(const QuantileLoss&) {
-    return true;
-}
-
-bool isconvex(const QuantileLoss&) {
-    return true;
-}
-
-bool isstrictlyconvex(const QuantileLoss&) {
-    return false;
-}
-
-bool isstronglyconvex(const QuantileLoss&) {
-    return false;
-}
 
 /*
  * LogCoshLoss : DistanceLoss
@@ -642,49 +651,49 @@ struct LogCoshLoss : DistanceLoss {
     constexpr double operator()(double diff) const override {
         return log_cosh(diff);
     }
+
+    constexpr double deriv(double diff) override {
+        return std::tanh(diff);
+    }
+
+    constexpr double deriv2(double diff) override {
+        double sech_diff = 1.0 / std::cosh(diff);
+        return sech_diff * sech_diff;
+    }
+
+    constexpr bool issymmetric() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return true;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return true;
+    }
 };
-
-double deriv(const LogCoshLoss&, double diff) {
-    return std::tanh(diff);
-}
-
-double deriv2(const LogCoshLoss&, double diff) {
-    double sech_diff = 1.0 / std::cosh(diff);
-    return sech_diff * sech_diff;
-}
-
-bool issymmetric(const LogCoshLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const LogCoshLoss&) {
-    return true;
-}
-
-bool isdifferentiable(const LogCoshLoss&, double) {
-    return true;
-}
-
-bool istwicedifferentiable(const LogCoshLoss&) {
-    return true;
-}
-
-bool istwicedifferentiable(const LogCoshLoss&, double) {
-    return true;
-}
-
-bool islipschitzcont(const LogCoshLoss&) {
-    return true;
-}
-
-bool isconvex(const LogCoshLoss&) {
-    return true;
-}
-
-bool isstrictlyconvex(const LogCoshLoss&) {
-    return true;
-}
-
-bool isstronglyconvex(const LogCoshLoss&) {
-    return true;
-}

@@ -4,24 +4,15 @@
 
 #include "Traits.h"
 
-template <typename L, typename W>
+template <typename L>
 struct WeightedMarginLoss : SupervisedLoss {
     L loss;
-    W weight;
+    double weight;
 
-    explicit WeightedMarginLoss(const L& loss) : loss(loss) {}
-    WeightedMarginLoss(const L& loss, const W& weight) : loss(loss), weight(weight) {
+    WeightedMarginLoss(L loss, double weight) : loss(loss), weight(weight) {
         if (!(weight >= 0 && weight <= 1)) {
             throw std::invalid_argument("The given weight has to be a number in the interval [0, 1]");
         }
-    }
-    WeightedMarginLoss(const WeightedMarginLoss<L, W>& l, double output, double target) {
-        if (target > 0) {
-            loss = static_cast<double>(l.weight) * l.loss(output, target);
-        } else {
-            loss = (1 - static_cast<double>(l.weight)) * l.loss(output, target);
-        }
-        weight *= l.weight;
     }
 
     double operator()(double output, double target) const {
@@ -30,117 +21,97 @@ struct WeightedMarginLoss : SupervisedLoss {
             return weight * loss(output, target);
         else
             return (1 - weight) * loss(output, target);
-    }    
+    }
+
+    double deriv(double output, double target) override {
+        // We interpret the W to be the weight of the positive class
+        if (target > 0) {
+            return static_cast<double>(weight) * loss.deriv(output, target);
+        } else {
+            return (1 - static_cast<double>(weight)) * loss.deriv(output, target);
+        }
+    }
+
+    double deriv2(double output, double target) override {
+        // We interpret the W to be the weight of the positive class
+        if (target > 0) {
+            return static_cast<double>(weight) * loss.deriv2(output, target);
+        } else {
+            return (1 - static_cast<double>(weight)) * loss.deriv2(output, target);
+        }
+    }
+
+    bool isclasscalibrated() override {
+        return weight == 0.5 && loss.isclasscalibrated();
+    }
+
+    bool issymmetric() override {
+        return false;
+    }
+
+    // Functions for checking properties
+    constexpr bool isminimizable() override {
+        return loss.isminimizable();
+    }
+
+    constexpr bool isdifferentiable() override {
+        return loss.isdifferentiable();
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return loss.istwicedifferentiable();
+    }
+
+    constexpr bool isconvex() override {
+        return loss.isconvex();
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return loss.isstrictlyconvex();
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return loss.isstronglyconvex();
+    }
+
+    constexpr bool isnemitski() override {
+        return loss.isnemitski();
+    }
+
+    constexpr bool isunivfishercons() override {
+        return loss.isunivfishercons();
+    }
+
+    constexpr bool isfishercons() override {
+        return loss.isfishercons();
+    }
+
+    constexpr bool islipschitzcont() override {
+        return loss.islipschitzcont();
+    }
+
+    constexpr bool islocallylipschitzcont() override {
+        return loss.islocallylipschitzcont();
+    }
+
+    constexpr bool isclipable() override {
+        return loss.isclipable();
+    }
+
+    constexpr bool ismarginbased() override {
+        return loss.ismarginbased();
+    }
+
+    constexpr bool isdistancebased() override {
+        return loss.isdistancebased();
+    }
+
+    // Functions for differentiability at a point
+    constexpr bool isdifferentiable(double at) override {
+        return loss.isdifferentiable(at);
+    }
+
+    constexpr bool istwicedifferentiable(double at) override {
+        return loss.istwicedifferentiable(at);
+    }  
 };
-
-template <typename L, typename W>
-double deriv(const WeightedMarginLoss<L, W>& l, double output, double target) {
-    // We interpret the W to be the weight of the positive class
-    if (target > 0) {
-        return static_cast<double>(l.weight) * deriv(l.loss, output, target);
-    } else {
-        return (1 - static_cast<double>(l.weight)) * deriv(l.loss, output, target);
-    }
-}
-
-template <typename L, typename W>
-double deriv2(const WeightedMarginLoss<L, W>& l, double output, double target) {
-    // We interpret the W to be the weight of the positive class
-    if (target > 0) {
-        return static_cast<double>(l.weight) * deriv2(l.loss, output, target);
-    } else {
-        return (1 - static_cast<double>(l.weight)) * deriv2(l.loss, output, target);
-    }
-}
-
-template <typename L, typename W>
-bool isclasscalibrated(const WeightedMarginLoss<L, W>& l) {
-    return l.weight == 0.5 && isclasscalibrated(l.loss);
-}
-
-template <typename L, typename W>
-bool issymmetric(const WeightedMarginLoss<L, W>&) {
-    return false;
-}
-
-// Functions for checking properties
-template <typename L, typename W>
-constexpr bool isminimizable(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isminimizable();
-}
-
-template <typename L, typename W>
-constexpr bool isdifferentiable(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isdifferentiable();
-}
-
-template <typename L, typename W>
-constexpr bool istwicedifferentiable(const WeightedMarginLoss<L, W>& loss) {
-    return loss.istwicedifferentiable();
-}
-
-template <typename L, typename W>
-constexpr bool isconvex(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isconvex();
-}
-
-template <typename L, typename W>
-constexpr bool isstrictlyconvex(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isstrictlyconvex();
-}
-
-template <typename L, typename W>
-constexpr bool isstronglyconvex(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isstronglyconvex();
-}
-
-template <typename L, typename W>
-constexpr bool isnemitski(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isnemitski();
-}
-
-template <typename L, typename W>
-constexpr bool isunivfishercons(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isunivfishercons();
-}
-
-template <typename L, typename W>
-constexpr bool isfishercons(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isfishercons();
-}
-
-template <typename L, typename W>
-constexpr bool islipschitzcont(const WeightedMarginLoss<L, W>& loss) {
-    return loss.islipschitzcont();
-}
-
-template <typename L, typename W>
-constexpr bool islocallylipschitzcont(const WeightedMarginLoss<L, W>& loss) {
-    return loss.islocallylipschitzcont();
-}
-
-template <typename L, typename W>
-constexpr bool isclipable(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isclipable();
-}
-
-template <typename L, typename W>
-constexpr bool ismarginbased(const WeightedMarginLoss<L, W>& loss) {
-    return loss.ismarginbased();
-}
-
-template <typename L, typename W>
-constexpr bool isdistancebased(const WeightedMarginLoss<L, W>& loss) {
-    return loss.isdistancebased();
-}
-
-// Functions for differentiability at a point
-template <typename L, typename W>
-constexpr bool isdifferentiable(const WeightedMarginLoss<L, W>& loss, double at) {
-    return loss.isdifferentiable(at);
-}
-
-template <typename L, typename W>
-constexpr bool istwicedifferentiable(const WeightedMarginLoss<L, W>& loss, double at) {
-    return loss.istwicedifferentiable(at);
-}

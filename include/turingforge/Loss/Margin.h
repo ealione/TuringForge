@@ -12,73 +12,74 @@
  * observation has a loss of `0`.
  * It is not convex nor continuous and thus seldom used directly.
  * Instead, one usually works with some classification-calibrated
- * surrogate loss, such as [L1HingeLoss].
+ * surrogatesuch as [L1HingeLoss].
  *
  * ```math
  * L(a) = \begin{cases} 1 & \quad \text{if } a < 0 \\ 0 & \quad \text{if } a >= 0\\ \end{cases}
  * ```
  */
 struct ZeroOneLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
-        return (signum(agreement) ? 1 : 0);
+        return (std::signbit(agreement) ? 1 : 0);
+    }
+
+    constexpr double deriv(double target, double output) override {
+        return double(0);
+    }
+
+    constexpr double deriv2(double target, double output) override {
+        return double(0);
+    }
+
+    constexpr double deriv(double agreement) override {
+        return double(0);
+    }
+
+    constexpr double deriv2(double agreement) override {
+        return double(0);
+    }
+
+    constexpr bool isminimizable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return false;
+    }
+
+    constexpr bool isdifferentiable(double at) override {
+        return at != 0;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    constexpr bool istwicedifferentiable(double at) override {
+        return at != 0;
+    }
+
+    constexpr bool isnemitski() override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return false;
+    }
+
+    constexpr bool isclasscalibrated() override {
+        return true;
+    }
+
+    constexpr bool isclipable() override {
+        return true;
     }
 };
-
-constexpr auto deriv(const ZeroOneLoss& loss, double target, double output) {
-    return double(0);
-}
-
-constexpr auto deriv2(const ZeroOneLoss& loss, double target, double output) {
-    return double(0);
-}
-
-constexpr auto deriv(const ZeroOneLoss& loss, double agreement) {
-    return double(0);
-}
-
-constexpr auto deriv2(const ZeroOneLoss& loss, double agreement) {
-    return double(0);
-}
-
-constexpr bool isminimizable(const ZeroOneLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const ZeroOneLoss&) {
-    return false;
-}
-
-constexpr bool isdifferentiable(const ZeroOneLoss&, double at) {
-    return at != 0;
-}
-
-constexpr bool istwicedifferentiable(const ZeroOneLoss&) {
-    return false;
-}
-
-constexpr bool istwicedifferentiable(const ZeroOneLoss&, double at) {
-    return at != 0;
-}
-
-constexpr bool isnemitski(const ZeroOneLoss&) {
-    return true;
-}
-
-constexpr bool islipschitzcont(const ZeroOneLoss&) {
-    return true;
-}
-
-constexpr bool isconvex(const ZeroOneLoss&) {
-    return false;
-}
-
-constexpr bool isclasscalibrated(const ZeroOneLoss&) {
-    return true;
-}
-
-constexpr bool isclipable(const ZeroOneLoss&) {
-    return true;
-}
 
 /*
  * PerceptronLoss <: MarginLoss
@@ -93,54 +94,55 @@ constexpr bool isclipable(const ZeroOneLoss&) {
  */
 
 struct PerceptronLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
         return std::max(double(0), -agreement);
     }
+
+    constexpr double deriv(double agreement) override {
+        return (agreement >= double(0)) ? double(0) : -double(1);
+    }
+
+    constexpr double deriv2(double agreement) override {
+        return double(0);
+    }
+
+    constexpr bool isdifferentiable() override {
+        return false;
+    }
+
+    constexpr bool isdifferentiable(double at) override {
+        return at != 0;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    constexpr bool istwicedifferentiable(double at) override {
+        return at != 0;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
+
+    constexpr bool isclipable() override {
+        return true;
+    }
 };
-
-constexpr auto deriv(const PerceptronLoss& loss, double agreement) {
-    return (agreement >= double(0)) ? double(0) : -double(1);
-}
-
-constexpr auto deriv2(const PerceptronLoss& loss, double agreement) {
-    return double(0);
-}
-
-constexpr bool isdifferentiable(const PerceptronLoss&) {
-    return false;
-}
-
-constexpr bool isdifferentiable(const PerceptronLoss&, double at) {
-    return at != 0;
-}
-
-constexpr bool istwicedifferentiable(const PerceptronLoss&) {
-    return false;
-}
-
-constexpr bool istwicedifferentiable(const PerceptronLoss&, double at) {
-    return at != 0;
-}
-
-constexpr bool islipschitzcont(const PerceptronLoss&) {
-    return true;
-}
-
-constexpr bool isconvex(const PerceptronLoss&) {
-    return true;
-}
-
-constexpr bool isstrictlyconvex(const PerceptronLoss&) {
-    return false;
-}
-
-constexpr bool isstronglyconvex(const PerceptronLoss&) {
-    return false;
-}
-
-constexpr bool isclipable(const PerceptronLoss&) {
-    return true;
-}
 
 /*
  * LogitMarginLoss <: MarginLoss
@@ -154,59 +156,60 @@ constexpr bool isclipable(const PerceptronLoss&) {
  */
 
 struct LogitMarginLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
         return std::log1p(std::exp(-agreement));
     }
+
+    constexpr double deriv(double agreement) override {
+        return -double(1) / (double(1) + std::exp(agreement));
+    }
+
+    constexpr double deriv2(double agreement) override {
+        auto exp_t = std::exp(agreement);
+        return exp_t / std::abs(std::pow(double(1) + exp_t, double(2)));
+    }
+
+    constexpr bool isunivfishercons() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return true;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
+
+    constexpr bool isclipable() override {
+        return false;
+    }
 };
-
-constexpr auto deriv(const LogitMarginLoss& loss, double agreement) {
-    return -double(1) / (double(1) + std::exp(agreement));
-}
-
-constexpr auto deriv2(const LogitMarginLoss& loss, double agreement) {
-    auto exp_t = std::exp(agreement);
-    return exp_t / std::abs(std::pow(double(1) + exp_t, double(2)));
-}
-
-constexpr bool isunivfishercons(const LogitMarginLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const LogitMarginLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const LogitMarginLoss&, double) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const LogitMarginLoss&) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const LogitMarginLoss&, double) {
-    return true;
-}
-
-constexpr bool islipschitzcont(const LogitMarginLoss&) {
-    return true;
-}
-
-constexpr bool isconvex(const LogitMarginLoss&) {
-    return true;
-}
-
-constexpr bool isstrictlyconvex(const LogitMarginLoss&) {
-    return true;
-}
-
-constexpr bool isstronglyconvex(const LogitMarginLoss&) {
-    return false;
-}
-
-constexpr bool isclipable(const LogitMarginLoss&) {
-    return false;
-}
 
 /*
  *  L1HingeLoss <: MarginLoss
@@ -221,58 +224,61 @@ constexpr bool isclipable(const LogitMarginLoss&) {
  */
 
 struct L1HingeLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
         return std::max(double(0), double(1) - agreement);
     }
+
+    constexpr double deriv(double agreement) override {
+        return agreement >= double(1) ? double(0) : -double(1);
+    }
+
+    constexpr double deriv2(double agreement) override {
+        return double(0);
+    }
+
+    constexpr bool isfishercons() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return false;
+    }
+
+    constexpr bool isdifferentiable(double at) override {
+        return at != double(1);
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    constexpr bool istwicedifferentiable(double at) override {
+        return at != double(1);
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
+
+    constexpr bool isclipable() override {
+        return true;
+    }
 };
 
-constexpr auto deriv(const L1HingeLoss& loss, double agreement) {
-    return agreement >= double(1) ? double(0) : -double(1);
-}
-
-constexpr auto deriv2(const L1HingeLoss& loss, double agreement) {
-    return double(0);
-}
-
-constexpr bool isfishercons(const L1HingeLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const L1HingeLoss&) {
-    return false;
-}
-
-constexpr bool isdifferentiable(const L1HingeLoss&, double at) {
-    return at != double(1);
-}
-
-constexpr bool istwicedifferentiable(const L1HingeLoss&) {
-    return false;
-}
-
-constexpr bool istwicedifferentiable(const L1HingeLoss&, double at) {
-    return at != double(1);
-}
-
-constexpr bool islipschitzcont(const L1HingeLoss&) {
-    return true;
-}
-
-constexpr bool isconvex(const L1HingeLoss&) {
-    return true;
-}
-
-constexpr bool isstrictlyconvex(const L1HingeLoss&) {
-    return false;
-}
-
-constexpr bool isstronglyconvex(const L1HingeLoss&) {
-    return false;
-}
-
-constexpr bool isclipable(const L1HingeLoss&) {
-    return true;
-}
+struct HingeLoss : public L1HingeLoss {};
 
 /*
  * L2HingeLoss <: MarginLoss
@@ -288,62 +294,63 @@ constexpr bool isclipable(const L1HingeLoss&) {
  */
 
 struct L2HingeLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
         return agreement >= double(1) ? double(0) : std::pow(double(1) - agreement, 2);
     }
+
+    constexpr double deriv(double agreement) override {
+        return agreement >= double(1) ? double(0) : double(2) * (agreement - double(1));
+    }
+
+    constexpr double deriv2(double agreement) override {
+        return agreement >= double(1) ? double(0) : double(2);
+    }
+
+    constexpr bool isunivfishercons() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    constexpr bool istwicedifferentiable(double at) override {
+        return at != double(1);
+    }
+
+    constexpr bool islocallylipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return false;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
+
+    constexpr bool isclipable() override {
+        return true;
+    }
 };
-
-constexpr auto deriv(const L2HingeLoss& loss, double agreement) {
-    return agreement >= double(1) ? double(0) : double(2) * (agreement - double(1));
-}
-
-constexpr auto deriv2(const L2HingeLoss& loss, double agreement) {
-    return agreement >= double(1) ? double(0) : double(2);
-}
-
-constexpr bool isunivfishercons(const L2HingeLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const L2HingeLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const L2HingeLoss&, double) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const L2HingeLoss&) {
-    return false;
-}
-
-constexpr bool istwicedifferentiable(const L2HingeLoss&, double at) {
-    return at != double(1);
-}
-
-constexpr bool islocallylipschitzcont(const L2HingeLoss&) {
-    return true;
-}
-
-constexpr bool islipschitzcont(const L2HingeLoss&) {
-    return false;
-}
-
-constexpr bool isconvex(const L2HingeLoss&) {
-    return true;
-}
-
-constexpr bool isstrictlyconvex(const L2HingeLoss&) {
-    return false;
-}
-
-constexpr bool isstronglyconvex(const L2HingeLoss&) {
-    return false;
-}
-
-constexpr bool isclipable(const L2HingeLoss&) {
-    return true;
-}
 
 /*
  * SmoothedL1HingeLoss <: MarginLoss
@@ -357,6 +364,7 @@ constexpr bool isclipable(const L2HingeLoss&) {
  */
 
 struct SmoothedL1HingeLoss : public MarginLoss {
+    using MarginLoss::operator();
     double gamma;
 
     explicit SmoothedL1HingeLoss(double gamma) : gamma(gamma) {
@@ -372,63 +380,63 @@ struct SmoothedL1HingeLoss : public MarginLoss {
             return double(1) - gamma / double(2) - agreement;
         }
     }
+
+    [[nodiscard]] constexpr double deriv(double agreement) override {
+        if (agreement >= 1 - gamma) {
+            return agreement >= 1 ? double(0) : (agreement - double(1)) / gamma;
+        } else {
+            return -double(1);
+        }
+    }
+
+    [[nodiscard]] constexpr double deriv2(double agreement) override {
+        if (agreement < 1 - gamma || agreement > 1) {
+            return double(0);
+        } else {
+            return double(1) / gamma;
+        }
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    [[nodiscard]] constexpr bool istwicedifferentiable(double at) const {
+        return at != 1 && at != 1 - gamma;
+    }
+
+    constexpr bool islocallylipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
+
+    constexpr bool isclipable() override {
+        return true;
+    }
 };
-
-constexpr auto deriv(const SmoothedL1HingeLoss& loss, double agreement) {
-    if (agreement >= 1 - loss.gamma) {
-        return agreement >= 1 ? double(0) : (agreement - double(1)) / loss.gamma;
-    } else {
-        return -double(1);
-    }
-}
-
-constexpr auto deriv2(const SmoothedL1HingeLoss& loss, double agreement) {
-    if (agreement < 1 - loss.gamma || agreement > 1) {
-        return double(0);
-    } else {
-        return double(1) / loss.gamma;
-    }
-}
-
-constexpr bool isdifferentiable(const SmoothedL1HingeLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const SmoothedL1HingeLoss&, double) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const SmoothedL1HingeLoss&) {
-    return false;
-}
-
-constexpr bool istwicedifferentiable(const SmoothedL1HingeLoss& loss, double at) {
-    return at != 1 && at != 1 - loss.gamma;
-}
-
-constexpr bool islocallylipschitzcont(const SmoothedL1HingeLoss&) {
-    return true;
-}
-
-constexpr bool islipschitzcont(const SmoothedL1HingeLoss&) {
-    return true;
-}
-
-constexpr bool isconvex(const SmoothedL1HingeLoss&) {
-    return true;
-}
-
-constexpr bool isstrictlyconvex(const SmoothedL1HingeLoss&) {
-    return false;
-}
-
-constexpr bool isstronglyconvex(const SmoothedL1HingeLoss&) {
-    return false;
-}
-
-constexpr bool isclipable(const SmoothedL1HingeLoss&) {
-    return true;
-}
 
 /*
  * ModifiedHuberLoss <: MarginLoss
@@ -443,6 +451,7 @@ constexpr bool isclipable(const SmoothedL1HingeLoss&) {
  */
 
 struct ModifiedHuberLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
         if (agreement >= -1) {
             return std::pow(std::max(double(0), double(1) - agreement), 2);
@@ -450,63 +459,63 @@ struct ModifiedHuberLoss : public MarginLoss {
             return -double(4) * agreement;
         }
     }
+
+    constexpr double deriv(double agreement) override {
+        if (agreement >= -1) {
+            return agreement > 1 ? double(0) : double(2) * agreement - double(2);
+        } else {
+            return -double(4);
+        }
+    }
+
+    constexpr double deriv2(double agreement) override {
+        if (agreement < -1 || agreement > 1) {
+            return double(0);
+        } else {
+            return double(2);
+        }
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return false;
+    }
+
+    constexpr bool istwicedifferentiable(double at) override {
+        return at != 1 && at != -1;
+    }
+
+    constexpr bool islocallylipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
+
+    constexpr bool isclipable() override {
+        return true;
+    }
 };
-
-constexpr auto deriv(const ModifiedHuberLoss& loss, double agreement) {
-    if (agreement >= -1) {
-        return agreement > 1 ? double(0) : double(2) * agreement - double(2);
-    } else {
-        return -double(4);
-    }
-}
-
-constexpr auto deriv2(const ModifiedHuberLoss& loss, double agreement) {
-    if (agreement < -1 || agreement > 1) {
-        return double(0);
-    } else {
-        return double(2);
-    }
-}
-
-constexpr bool isdifferentiable(const ModifiedHuberLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const ModifiedHuberLoss&, double) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const ModifiedHuberLoss&) {
-    return false;
-}
-
-constexpr bool istwicedifferentiable(const ModifiedHuberLoss&, double at) {
-    return at != 1 && at != -1;
-}
-
-constexpr bool islocallylipschitzcont(const ModifiedHuberLoss&) {
-    return true;
-}
-
-constexpr bool islipschitzcont(const ModifiedHuberLoss&) {
-    return true;
-}
-
-constexpr bool isconvex(const ModifiedHuberLoss&) {
-    return true;
-}
-
-constexpr bool isstrictlyconvex(const ModifiedHuberLoss&) {
-    return false;
-}
-
-constexpr bool isstronglyconvex(const ModifiedHuberLoss&) {
-    return false;
-}
-
-constexpr bool isclipable(const ModifiedHuberLoss&) {
-    return true;
-}
 
 /*
  * L2MarginLoss <: MarginLoss
@@ -521,64 +530,63 @@ constexpr bool isclipable(const ModifiedHuberLoss&) {
  */
 
 struct L2MarginLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
         return std::pow(double(1) - agreement, 2);
     }
+
+    constexpr double deriv(double agreement) override {
+        return double(2) * (agreement - double(1));
+    }
+
+    constexpr double deriv2(double agreement) override {
+        return double(2);
+    }
+
+    constexpr bool isunivfishercons() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool islocallylipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return false;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return true;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return true;
+    }
+
+    constexpr bool isclipable() override {
+        return true;
+    }
 };
-
-
-template <typename T>
-constexpr auto deriv(const L2MarginLoss& loss, double agreement) {
-    return double(2) * (agreement - double(1));
-}
-
-constexpr auto deriv2(const L2MarginLoss& loss, double agreement) {
-    return double(2);
-}
-
-constexpr bool isunivfishercons(const L2MarginLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const L2MarginLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const L2MarginLoss&, double) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const L2MarginLoss&) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const L2MarginLoss&, double) {
-    return true;
-}
-
-constexpr bool islocallylipschitzcont(const L2MarginLoss&) {
-    return true;
-}
-
-constexpr bool islipschitzcont(const L2MarginLoss&) {
-    return false;
-}
-
-constexpr bool isconvex(const L2MarginLoss&) {
-    return true;
-}
-
-constexpr bool isstrictlyconvex(const L2MarginLoss&) {
-    return true;
-}
-
-constexpr bool isstronglyconvex(const L2MarginLoss&) {
-    return true;
-}
-
-constexpr bool isclipable(const L2MarginLoss&) {
-    return true;
-}
 
 /*
  * ExpLoss <: MarginLoss
@@ -594,62 +602,63 @@ constexpr bool isclipable(const L2MarginLoss&) {
  */
 
 struct ExpLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
         return std::exp(-agreement);
     }
+
+    constexpr double deriv(double agreement) override {
+        return -std::exp(-agreement);
+    }
+
+    constexpr double deriv2(double agreement) override {
+        return std::exp(-agreement);
+    }
+
+    constexpr bool isunivfishercons() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool islocallylipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return false;
+    }
+
+    constexpr bool isconvex() override {
+        return true;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return true;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
+
+    constexpr bool isclipable() override {
+        return false;
+    }
 };
-
-constexpr auto deriv(const ExpLoss& loss, double agreement) {
-    return -std::exp(-agreement);
-}
-
-constexpr auto deriv2(const ExpLoss& loss, double agreement) {
-    return std::exp(-agreement);
-}
-
-constexpr bool isunivfishercons(const ExpLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const ExpLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const ExpLoss&, double) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const ExpLoss&) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const ExpLoss&, double) {
-    return true;
-}
-
-constexpr bool islocallylipschitzcont(const ExpLoss&) {
-    return true;
-}
-
-constexpr bool islipschitzcont(const ExpLoss&) {
-    return false;
-}
-
-constexpr bool isconvex(const ExpLoss&) {
-    return true;
-}
-
-constexpr bool isstrictlyconvex(const ExpLoss&) {
-    return true;
-}
-
-constexpr bool isstronglyconvex(const ExpLoss&) {
-    return false;
-}
-
-constexpr bool isclipable(const ExpLoss&) {
-    return false;
-}
 
 /*
  * SigmoidLoss <: MarginLoss
@@ -664,66 +673,67 @@ constexpr bool isclipable(const ExpLoss&) {
  */
 
 struct SigmoidLoss : public MarginLoss {
+    using MarginLoss::operator();
     constexpr double operator()(double agreement) const override {
         return double(1) - std::tanh(agreement);
     }
+
+    constexpr double deriv(double agreement) override {
+        return -abs2(sech(agreement));
+    }
+
+    constexpr double deriv2(double agreement) override {
+        return double(2) * std::tanh(agreement) * abs2(sech(agreement));
+    }
+
+    constexpr bool isunivfishercons() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable() override {
+        return true;
+    }
+
+    constexpr bool isdifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable() override {
+        return true;
+    }
+
+    constexpr bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    constexpr bool islocallylipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool islipschitzcont() override {
+        return true;
+    }
+
+    constexpr bool isclasscalibrated() override {
+        return true;
+    }
+
+    constexpr bool isconvex() override {
+        return false;
+    }
+
+    constexpr bool isstrictlyconvex() override {
+        return false;
+    }
+
+    constexpr bool isstronglyconvex() override {
+        return false;
+    }
+
+    constexpr bool isclipable() override {
+        return false;
+    }
 };
-
-constexpr auto deriv(const SigmoidLoss& loss, double agreement) {
-    return -abs2(sech(agreement));
-}
-
-constexpr auto deriv2(const SigmoidLoss& loss, double agreement) {
-    return double(2) * std::tanh(agreement) * abs2(sech(agreement));
-}
-
-constexpr bool isunivfishercons(const SigmoidLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const SigmoidLoss&) {
-    return true;
-}
-
-constexpr bool isdifferentiable(const SigmoidLoss&, double) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const SigmoidLoss&) {
-    return true;
-}
-
-constexpr bool istwicedifferentiable(const SigmoidLoss&, double) {
-    return true;
-}
-
-constexpr bool islocallylipschitzcont(const SigmoidLoss&) {
-    return true;
-}
-
-constexpr bool islipschitzcont(const SigmoidLoss&) {
-    return true;
-}
-
-constexpr bool isclasscalibrated(const SigmoidLoss&) {
-    return true;
-}
-
-constexpr bool isconvex(const SigmoidLoss&) {
-    return false;
-}
-
-constexpr bool isstrictlyconvex(const SigmoidLoss&) {
-    return false;
-}
-
-constexpr bool isstronglyconvex(const SigmoidLoss&) {
-    return false;
-}
-
-constexpr bool isclipable(const SigmoidLoss&) {
-    return false;
-}
 
 /*
  * DWDMarginLoss <: MarginLoss
@@ -739,6 +749,7 @@ constexpr bool isclipable(const SigmoidLoss&) {
  */
 
 struct DWDMarginLoss : MarginLoss {
+    using MarginLoss::operator();
     double q;
 
     explicit DWDMarginLoss(double q) : q(q) {
@@ -754,70 +765,68 @@ struct DWDMarginLoss : MarginLoss {
             return std::pow(q, q) / std::pow(q + 1, q + 1) / std::pow(agreement, q);
         }
     }
+
+    double deriv(double agreement) override {
+        if (agreement <= q / (q + 1)) {
+            return -double(1);
+        } else {
+            return -std::pow(q / (q + 1), q + 1) / std::pow(agreement, q + 1);
+        }
+    }
+
+    double deriv2(double agreement) override {
+        if (agreement <= q / (q + 1)) {
+            return double(0);
+        } else {
+            return std::pow(q, q + 1) / std::pow(q + 1, q) / std::pow(agreement, q + 2);
+        }
+    }
+
+    bool isdifferentiable() override {
+        return true;
+    }
+
+    bool isdifferentiable(double) override {
+        return true;
+    }
+
+    bool istwicedifferentiable() override {
+        return true;
+    }
+
+    bool istwicedifferentiable(double) override {
+        return true;
+    }
+
+    bool islocallylipschitzcont() override {
+        return true;
+    }
+
+    bool islipschitzcont() override {
+        return true;
+    }
+
+    bool isconvex() override {
+        return true;
+    }
+
+    bool isstrictlyconvex() override {
+        return false;
+    }
+
+    bool isstronglyconvex() override {
+        return false;
+    }
+
+    bool isfishercons() override {
+        return true;
+    }
+
+    bool isunivfishercons() override {
+        return true;
+    }
+
+    bool isclipable() override {
+        return false;
+    }
 };
-
-double deriv(const DWDMarginLoss& loss, double agreement) {
-    double q = loss.q;
-    if (agreement <= q / (q + 1)) {
-        return -double(1);
-    } else {
-        return -std::pow(q / (q + 1), q + 1) / std::pow(agreement, q + 1);
-    }
-}
-
-double deriv2(const DWDMarginLoss& loss, double agreement) {
-    double q = loss.q;
-    if (agreement <= q / (q + 1)) {
-        return double(0);
-    } else {
-        return std::pow(q, q + 1) / std::pow(q + 1, q) / std::pow(agreement, q + 2);
-    }
-}
-
-bool isdifferentiable(const DWDMarginLoss&) {
-    return true;
-}
-
-bool isdifferentiable(DWDMarginLoss&, double) {
-    return true;
-}
-
-bool istwicedifferentiable(DWDMarginLoss&) {
-    return true;
-}
-
-bool istwicedifferentiable(DWDMarginLoss&, double) {
-    return true;
-}
-
-bool islocallylipschitzcont(DWDMarginLoss&) {
-    return true;
-}
-
-bool islipschitzcont(DWDMarginLoss&) {
-    return true;
-}
-
-bool isconvex(DWDMarginLoss&) {
-    return true;
-}
-
-bool isstrictlyconvex(DWDMarginLoss&) {
-    return false;
-}
-
-bool isstronglyconvex(DWDMarginLoss&) {
-    return false;
-}
-
-bool isfishercons(DWDMarginLoss&) {
-    return true;
-}
-
-bool isunivfishercons(DWDMarginLoss&) {
-    return true;
-}
-
-bool isclipable(DWDMarginLoss&) {
-    return false;
-}

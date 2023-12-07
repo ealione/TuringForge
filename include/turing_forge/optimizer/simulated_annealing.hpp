@@ -3,12 +3,13 @@
 #include <random>
 
 #include "config.hpp"
+#include "core/random.hpp"
 
-
-class SimulatedAnnealing {
+class SimulatedAnnealing
+{
 public:
-  double * current_solution = nullptr;
-  double * candidate_solution = nullptr;
+  double *current_solution = nullptr;
+  double *candidate_solution = nullptr;
 
   double current_evaluation;
   double candidate_evaluation;
@@ -17,7 +18,5 @@ public:
   void run(int epochs = MAX_ITERATIONS);
 
 private:
-  std::random_device rd;
-  std::default_random_engine generator(rd());
-  std::uniform_real_distribution<double> distribution(0.0, 1.0);
+  Turingforge::RandomScalar random_generator = Turingforge::RandomScalar();
 };

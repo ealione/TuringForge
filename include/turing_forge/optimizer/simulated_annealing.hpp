@@ -1,9 +1,13 @@
 #pragma once
 
 #include <random>
+#include <functional>
 
-#include "config.hpp"
-#include "core/random.hpp"
+#include "../config.hpp"
+#include "../core/random.hpp"
+
+#include "../core/expression.hpp"
+
 
 class SimulatedAnnealing
 {
@@ -18,5 +22,5 @@ public:
   void run(int epochs = MAX_ITERATIONS);
 
 private:
-  Turingforge::RandomScalar random_generator = Turingforge::RandomScalar();
+    std::function<Turingforge::Scalar()> random_generator = Turingforge::RandomScalar(0.0F, +1.0F);
 };

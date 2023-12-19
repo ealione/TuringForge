@@ -2,7 +2,7 @@ file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/include/turing_fo
 
 add_library(optimizer_lib simulated_annealing.cpp ${HEADER_LIST})
 
-target_include_directories(optimizer_lib PUBLIC ../../include)
+target_include_directories(optimizer_lib PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 #target_link_libraries(optimizer_lib PRIVATE Boost::boost)
 

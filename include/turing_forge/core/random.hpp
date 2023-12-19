@@ -67,4 +67,8 @@ namespace Turingforge
         return std::sample(start, end, out, n, random);
     }
 
+  auto RandomSymbol = [](auto& random) {
+  return static_cast<FunctionType>(Sample(random), FunctionType::Add, FunctionType::Variable));
+}
+
 }

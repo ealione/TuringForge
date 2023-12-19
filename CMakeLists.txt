@@ -3,20 +3,18 @@ project(host_code)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_compile_options(-Wall -Wextra -pedantic -Werror)
-
-include(cmake/prelude.cmake)
+#add_compile_options(-Wall -Wextra -pedantic -Werror)
 
 project(
   Turingforge
   VERSION 0.0.1
   DESCRIPTION "Hardware powered Symbolic Regression library."
   HOMEPAGE_URL "https://"
-  LANGUAGES CXX BSV
+  LANGUAGES CXX
 )
 
 # Only do these if this is the main project, and not if it is included through add_subdirectory
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+if(PROJECT_IS_TOP_LEVEL)
 
   set(CMAKE_CXX_STANDARD 20)
   set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -41,19 +39,38 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   endif()
 endif()
 
-# FetchContent added in CMake 3.11, downloads during the configure step
-# FetchContent_MakeAvailable was added in CMake 3.14; simpler usage
 include(FetchContent)
 
 find_package(MPI REQUIRED)
 
 # Formatting library
-#FetchContent_Declare(
-#  fmtlib
-#  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-#  GIT_TAG 10.1.1)
-#FetchContent_MakeAvailable(fmtlib)
+FetchContent_Declare(
+        fmtlib
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG 5.3.0)
 # Adds fmt::fmt
+FetchContent_MakeAvailable(fmtlib)
+
+# Input Parsing library
+FetchContent_Declare(
+        cxxopts
+        GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+        GIT_SHALLOW TRUE)
+set(CXXOPTS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(CXXOPTS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(CXXOPTS_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+set(CXXOPTS_ENABLE_WARNINGS OFF CACHE BOOL "" FORCE)
+# Adds cxxopts
+FetchContent_MakeAvailable(cxxopts)
+
+# ANKERL library
+FetchContent_Declare(
+        ankerl
+        GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
+        GIT_SHALLOW TRUE
+        GIT_TAG v4.1.2)
+# Adds unordered_dense::unordered_dense
+FetchContent_MakeAvailable(ankerl)
 
 add_subdirectory(src)
 
@@ -61,9 +78,7 @@ add_subdirectory(src)
 add_subdirectory(apps)
 
 # Testing only available if this is the main app
-# Emergency override MODERN_CMAKE_BUILD_TESTING provided as well
-if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR MODERN_CMAKE_BUILD_TESTING)
-   AND BUILD_TESTING)
+# Emergency override TURINGFORGE_CMAKE_BUILD_TESTING provided as well
+if((PROJECT_IS_TOP_LEVEL OR TURINGFORGE_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
   add_subdirectory(tests)
 endif()
-

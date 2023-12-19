@@ -3,7 +3,7 @@ project(host_code)
 
 set(CMAKE_CXX_STANDARD 20)
 
-#add_compile_options(-Wall -Wextra -pedantic -Werror)
+add_compile_options(-Wall -Wextra -pedantic -Werror)
 
 project(
   Turingforge
@@ -40,6 +40,7 @@ if(PROJECT_IS_TOP_LEVEL)
 endif()
 
 include(FetchContent)
+include(ExternalProject)
 
 find_package(MPI REQUIRED)
 
@@ -50,27 +51,6 @@ FetchContent_Declare(
         GIT_TAG 5.3.0)
 # Adds fmt::fmt
 FetchContent_MakeAvailable(fmtlib)
-
-# Input Parsing library
-FetchContent_Declare(
-        cxxopts
-        GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
-        GIT_SHALLOW TRUE)
-set(CXXOPTS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(CXXOPTS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(CXXOPTS_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
-set(CXXOPTS_ENABLE_WARNINGS OFF CACHE BOOL "" FORCE)
-# Adds cxxopts
-FetchContent_MakeAvailable(cxxopts)
-
-# ANKERL library
-FetchContent_Declare(
-        ankerl
-        GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
-        GIT_SHALLOW TRUE
-        GIT_TAG v4.1.2)
-# Adds unordered_dense::unordered_dense
-FetchContent_MakeAvailable(ankerl)
 
 add_subdirectory(src)
 

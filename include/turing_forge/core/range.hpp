@@ -35,7 +35,7 @@ namespace Turingforge {
     private:
         static auto CheckRange(std::size_t start, std::size_t end) -> std::pair<std::size_t, std::size_t>
         {
-//            EXPECT(start <= end);
+            EXPECT(start <= end);
             return { start, end };
         }
         std::pair<std::size_t, std::size_t> range_;

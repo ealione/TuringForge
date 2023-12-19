@@ -3,6 +3,7 @@
 #include <utility>
 #include <string>
 
+#include <ankerl/unordered_dense.h>
 #include "turing_forge/core/node.hpp"
 
 
@@ -43,9 +44,10 @@ namespace Turingforge {
             { NodeType::Square,   std::make_pair("square", "square function f(a) = a^2" ) },
             { NodeType::Dynamic,  std::make_pair("dyn", "user-defined function" ) },
             { NodeType::Constant, std::make_pair("constant", "a constant value" ) },
-            { NodeType::Variable, std::make_pair("variable", "a dataset input with an associated weight" ) },
+            { NodeType::Variable, std::make_pair("variable", "a dataset input with an associated weight" ) }
     };
 
     auto Node::Name() const noexcept -> std::string const& { return NodeDesc.at(Type).first; }
     auto Node::Desc() const noexcept -> std::string const& { return NodeDesc.at(Type).second; }
+
 }

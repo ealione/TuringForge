@@ -71,8 +71,20 @@ struct NodeTypes {
     }
 
     static auto toString(NodeType type) -> std::string {
-      // TODO: Update this
         switch (type) {
+            // n-ary symbols
+            case NodeType::Add: return "add";
+            case NodeType::Mul: return "mul";
+            case NodeType::Sub: return "sub";
+            case NodeType::Div: return "div";
+            case NodeType::Fmin: return "fmin";
+            case NodeType::Fmax: return "fmax";
+
+                // binary symbols
+            case NodeType::Aq: return "aq";
+            case NodeType::Pow: return "pow";
+
+                // unary symbols
             case NodeType::Abs: return "abs";
             case NodeType::Acos: return "acos";
             case NodeType::Asin: return "asin";
@@ -93,9 +105,12 @@ struct NodeTypes {
             case NodeType::Tan: return "tan";
             case NodeType::Tanh: return "tanh";
             case NodeType::Square: return "square";
+
+                // nullary symbols (dynamic can be anything)
             case NodeType::Dynamic: return "dynamic";
             case NodeType::Constant: return "constant";
             case NodeType::Variable: return "variable";
+
             default: return "unknown";
         }
     }
@@ -153,22 +168,15 @@ struct Node {
     Node() = default;
 
     explicit Node(NodeType type) noexcept
-            : Node(type, static_cast<Turingforge::Hash>(type))
-    {
-    }
-
-    explicit Node(NodeType type, Turingforge::Hash hashValue) noexcept
             : Arity(0UL)
             , Length(0UL)
             , Type(type)
     {
         if (Type < NodeType::Abs) // Add, Mul, Sub, Div, Aq, Pow
-        {
             Arity = 2;
-        } else if (Type < NodeType::Dynamic) // Log, Exp, Sin, Cos, Tan, Tanh, Sqrt, Cbrt, Square
-        {
+        else if (Type < NodeType::Dynamic) // Log, Exp, Sin, Cos, Tan, Tanh, Sqrt, Cbrt, Square
             Arity = 1;
-        }
+
         Length = Arity;
         IsEnabled = true;
         Value = 1.;
@@ -185,35 +193,35 @@ struct Node {
     [[nodiscard]] auto Desc() const noexcept -> std::string const&;
 
     // comparison operators
-//    inline auto operator==(const Node& rhs) const noexcept -> bool
-//    {
-//        return CalculatedHashValue == rhs.CalculatedHashValue;
-//    }
-//
-//    inline auto operator!=(const Node& rhs) const noexcept -> bool
-//    {
-//        return !((*this) == rhs);
-//    }
-//
-//    inline auto operator<(const Node& rhs) const noexcept -> bool
-//    {
-//        return std::tie(HashValue, CalculatedHashValue) < std::tie(rhs.HashValue, rhs.CalculatedHashValue);
-//    }
-//
-//    inline auto operator<=(const Node& rhs) const noexcept -> bool
-//    {
-//        return ((*this) == rhs || (*this) < rhs);
-//    }
-//
-//    inline auto operator>(const Node& rhs) const noexcept -> bool
-//    {
-//        return !((*this) <= rhs);
-//    }
-//
-//    inline auto operator>=(const Node& rhs) const noexcept -> bool
-//    {
-//        return !((*this) < rhs);
-//    }
+    inline auto operator==(const Node& rhs) const noexcept -> bool
+    {
+        return Arity == rhs.Arity && Type == rhs.Type && Length == rhs.Length;
+    }
+
+    inline auto operator!=(const Node& rhs) const noexcept -> bool
+    {
+        return !((*this) == rhs);
+    }
+
+    inline auto operator<(const Node& rhs) const noexcept -> bool
+    {
+        return std::tie(Type) < std::tie(rhs.Type);
+    }
+
+    inline auto operator<=(const Node& rhs) const noexcept -> bool
+    {
+        return ((*this) == rhs || (*this) < rhs);
+    }
+
+    inline auto operator>(const Node& rhs) const noexcept -> bool
+    {
+        return !((*this) <= rhs);
+    }
+
+    inline auto operator>=(const Node& rhs) const noexcept -> bool
+    {
+        return !((*this) < rhs);
+    }
 
     [[nodiscard]] inline auto IsLeaf() const noexcept -> bool { return Arity == 0; }
     [[nodiscard]] inline auto IsCommutative() const noexcept -> bool { return Is<NodeType::Add, NodeType::Mul, NodeType::Fmin, NodeType::Fmax>(); }
@@ -254,4 +262,3 @@ struct Node {
 };
 
 } // namespace Turingforge
-

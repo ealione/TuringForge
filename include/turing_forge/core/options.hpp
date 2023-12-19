@@ -1,6 +1,7 @@
 #include <cxxopts.hpp>
 
 #include "version.hpp"
+#include "types.hpp"
 
 
 namespace Turingforge {
@@ -28,7 +29,7 @@ namespace Turingforge {
                 ("pool-size", "Recombination pool size (how many generated offspring per generation)",
                  cxxopts::value<size_t>()->default_value("1000"))
                 ("seed", "Random number seed",
-                 cxxopts::value<Turingforge::RandomGenerator::result_type>()->default_value("0"))
+                 cxxopts::value<RandomGenerator::result_type>()->default_value("0"))
                 ("generations", "Number of generations", cxxopts::value<size_t>()->default_value("1000"))
                 ("iterations", "Local optimization iterations", cxxopts::value<size_t>()->default_value("0"))
                 ("selection-pressure", "Selection pressure", cxxopts::value<size_t>()->default_value("100"))

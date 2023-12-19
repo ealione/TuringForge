@@ -4,7 +4,7 @@
 #include <random>
 #include <type_traits>
 
-//#include "turing_forge/core/types.hpp"
+#include "turing_forge/core/types.hpp"
 #include "turing_forge/core/node.hpp"
 #include "romu.hpp"
 
@@ -54,7 +54,7 @@ namespace Turingforge::Random {
     }
 
     auto RandomSymbol = [](auto &random) {
-        auto all_types = NodeTypes::GetAllTypes();
+        auto all_types = Turingforge::NodeTypes::GetAllTypes();
         return *Sample(random, all_types.begin(), all_types.end());
     };
 }

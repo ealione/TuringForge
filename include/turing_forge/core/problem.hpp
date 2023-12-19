@@ -4,6 +4,13 @@
 #include <utility>
 #include <vector>
 
+#include <fmt>
+
+#include "variable.hpp"
+#include "range.hpp"
+#include "primitive_set.hpp"
+#include "dataset.hpp"
+
 
 namespace Turingforge {
 

@@ -30,5 +30,5 @@ private:
     Turingforge::Span<Turingforge::Individual> parents_;
     Turingforge::Span<Turingforge::Individual> offspring_;
 
-    std::function<Turingforge::Scalar()> random_generator = Turingforge::RandomScalar(0.0F, +1.0F);
+    Turingforge::RandomGenerator random_generator{0};
 };

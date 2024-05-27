@@ -5,6 +5,12 @@
 namespace Turingforge
 {
 
+    enum HashFunction {
+        XXHash,
+        MetroHash,
+        FNV1Hash,
+    };
+
   struct Math
   {
     static double constexpr Pi = 3.141592653589793115997963468544185161590576171875;
@@ -21,5 +27,7 @@ namespace Turingforge
 
     static std::array<double, 11> constexpr Constants{Pi, Tau, InvPi, SqrtPi, E, Log2E, Log10E, LogE2, LogE10, Sqrt2, InvSqrt2};
   };
+
+    static constexpr auto Align64 = 64U;
 
 }

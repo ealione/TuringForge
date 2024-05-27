@@ -1,14 +1,14 @@
 #pragma once
 
 #include "contracts.hpp"
-#include "node.hpp"
+#include "function.hpp"
 
 
 namespace Turingforge {
 
     class PrimitiveSet {
         using Primitive = std::tuple<
-                Node,
+                Function,
                 size_t, // 1: frequency
                 size_t, // 2: min arity
                 size_t  // 3: max arity
@@ -30,9 +30,9 @@ namespace Turingforge {
         }
 
     public:
-        static constexpr PrimitiveSetConfig Arithmetic = NodeType::Constant | NodeType::Variable | NodeType::Add | NodeType::Sub | NodeType::Mul | NodeType::Div;
-        static constexpr PrimitiveSetConfig TypeCoherent = Arithmetic | NodeType::Pow | NodeType::Exp | NodeType::Log | NodeType::Sin | NodeType::Cos | NodeType::Square;
-        static constexpr PrimitiveSetConfig Full = TypeCoherent | NodeType::Aq | NodeType::Tan | NodeType::Tanh | NodeType::Sqrt | NodeType::Cbrt;
+        static constexpr PrimitiveSetConfig Arithmetic = FunctionType::Constant | FunctionType::Variable | FunctionType::Add | FunctionType::Sub | FunctionType::Mul | FunctionType::Div;
+        static constexpr PrimitiveSetConfig TypeCoherent = Arithmetic | FunctionType::Pow | FunctionType::Exp | FunctionType::Log | FunctionType::Sin | FunctionType::Cos | FunctionType::Square;
+        static constexpr PrimitiveSetConfig Full = TypeCoherent | FunctionType::Aq | FunctionType::Tan | FunctionType::Tanh | FunctionType::Sqrt | FunctionType::Cbrt;
 
         PrimitiveSet() = default;
 
@@ -43,21 +43,21 @@ namespace Turingforge {
 
         [[nodiscard]] auto Primitives() const -> decltype(pset_) const& { return pset_; }
 
-        auto AddPrimitive(Turingforge::Node node, size_t frequency, size_t minArity, size_t maxArity) -> bool
+        auto AddPrimitive(Turingforge::Function node, size_t frequency, size_t minArity, size_t maxArity) -> bool
         {
             auto [_, ok] = pset_.insert({ node.HashValue, Primitive { node, frequency, minArity, maxArity } });
             return ok;
         }
-        void RemovePrimitive(Turingforge::Node node) { pset_.erase(node.HashValue); }
+        void RemovePrimitive(Turingforge::Function node) { pset_.erase(node.HashValue); }
 
         void RemovePrimitive(Turingforge::Hash hash) { pset_.erase(hash); }
 
         void SetConfig(PrimitiveSetConfig config)
         {
             pset_.clear();
-            for (size_t i = 0; i < Turingforge::NodeTypes::Count; ++i) {
-                auto t = static_cast<Turingforge::NodeType>(1U << i);
-                Turingforge::Node n(t);
+            for (size_t i = 0; i < Turingforge::FunctionTypes::Count; ++i) {
+                auto t = static_cast<Turingforge::FunctionType>(1U << i);
+                Turingforge::Function n(t);
 
                 if (((1U << i) & static_cast<uint32_t>(config)) != 0U) {
                     pset_[n.HashValue] = { n, 1, n.Arity, n.Arity };
@@ -65,8 +65,8 @@ namespace Turingforge {
             }
         }
 
-        [[nodiscard]] auto EnabledPrimitives() const -> std::vector<Node> {
-            std::vector<Node> nodes;
+        [[nodiscard]] auto EnabledPrimitives() const -> std::vector<Function> {
+            std::vector<Function> nodes;
             for (auto const& [k, v] : pset_) {
                 auto [node, freq, min_arity, max_arity] = v;
                 if (node.IsEnabled && freq > 0) {
@@ -129,14 +129,13 @@ namespace Turingforge {
             auto minArity = std::numeric_limits<size_t>::max();
             auto maxArity = std::numeric_limits<size_t>::min();
             for (auto const& [key, val] : pset_) {
-                if (std::get<NODE>(val).IsLeaf()) { continue; }
                 minArity = std::min(minArity, std::get<MINARITY>(val));
                 maxArity = std::max(maxArity, std::get<MAXARITY>(val));
             }
             return { minArity, maxArity };
         }
 
-        OPERON_EXPORT auto SampleRandomSymbol(Turingforge::RandomGenerator& random, size_t minArity, size_t maxArity) const -> Turingforge::Node;
+        auto SampleRandomSymbol(Turingforge::RandomGenerator& random, size_t minArity, size_t maxArity) const -> Turingforge::Function;
 
         void SetMinimumArity(Turingforge::Hash hash, size_t minArity)
         {
@@ -179,33 +178,33 @@ namespace Turingforge {
         }
 
         // convenience overloads
-        void SetFrequency(Turingforge::Node node, size_t frequency) { SetFrequency(node.HashValue, frequency); }
-        [[nodiscard]] auto Frequency(Turingforge::Node node) const -> size_t { return Frequency(node.HashValue); }
+        void SetFrequency(Turingforge::Function node, size_t frequency) { SetFrequency(node.HashValue, frequency); }
+        [[nodiscard]] auto Frequency(Turingforge::Function node) const -> size_t { return Frequency(node.HashValue); }
 
-        [[nodiscard]] auto Contains(Turingforge::Node node) const -> bool { return Contains(node.HashValue); }
-        [[nodiscard]] auto IsEnabled(Turingforge::Node node) const -> bool { return IsEnabled(node.HashValue); }
+        [[nodiscard]] auto Contains(Turingforge::Function node) const -> bool { return Contains(node.HashValue); }
+        [[nodiscard]] auto IsEnabled(Turingforge::Function node) const -> bool { return IsEnabled(node.HashValue); }
 
-        void SetEnabled(Turingforge::Node node, bool enabled) { SetEnabled(node.HashValue, enabled); }
-        void Enable(Turingforge::Node node) { SetEnabled(node, /*enabled=*/true); }
-        void Disable(Turingforge::Node node) { SetEnabled(node, /*enabled=*/false); }
+        void SetEnabled(Turingforge::Function node, bool enabled) { SetEnabled(node.HashValue, enabled); }
+        void Enable(Turingforge::Function node) { SetEnabled(node, /*enabled=*/true); }
+        void Disable(Turingforge::Function node) { SetEnabled(node, /*enabled=*/false); }
 
-        void SetMinimumArity(Turingforge::Node node, size_t minArity)
+        void SetMinimumArity(Turingforge::Function node, size_t minArity)
         {
             SetMinimumArity(node.HashValue, minArity);
         }
-        [[nodiscard]] auto MinimumArity(Turingforge::Node node) const -> size_t { return MinimumArity(node.HashValue); }
+        [[nodiscard]] auto MinimumArity(Turingforge::Function node) const -> size_t { return MinimumArity(node.HashValue); }
 
-        void SetMaximumArity(Turingforge::Node node, size_t maxArity)
+        void SetMaximumArity(Turingforge::Function node, size_t maxArity)
         {
             SetMaximumArity(node.HashValue, maxArity);
         }
-        [[nodiscard]] auto MaximumArity(Turingforge::Node node) const -> size_t { return MaximumArity(node.HashValue); }
+        [[nodiscard]] auto MaximumArity(Turingforge::Function node) const -> size_t { return MaximumArity(node.HashValue); }
 
-        [[nodiscard]] auto MinMaxArity(Turingforge::Node node) const -> std::tuple<size_t, size_t>
+        [[nodiscard]] auto MinMaxArity(Turingforge::Function node) const -> std::tuple<size_t, size_t>
         {
             return MinMaxArity(node.HashValue);
         }
-        void SetMinMaxArity(Turingforge::Node node, size_t minArity, size_t maxArity)
+        void SetMinMaxArity(Turingforge::Function node, size_t minArity, size_t maxArity)
         {
             SetMinMaxArity(node.HashValue, minArity, maxArity);
         }

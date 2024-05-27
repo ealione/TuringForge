@@ -1,22 +1,23 @@
-cmake_minimum_required(VERSION 3.25)
-project(host_code)
-
-set(CMAKE_CXX_STANDARD 20)
-
-add_compile_options(-Wall -Wextra -pedantic -Werror)
+cmake_minimum_required(VERSION 3.19...3.25 FATAL_ERROR)
 
 project(
-  Turingforge
-  VERSION 0.0.1
-  DESCRIPTION "Hardware powered Symbolic Regression library."
-  HOMEPAGE_URL "https://"
-  LANGUAGES CXX
+        Turingforge
+        VERSION 0.1.0
+        DESCRIPTION "Hardware powered Symbolic Regression library."
+        HOMEPAGE_URL "https://"
+        LANGUAGES CXX C
 )
+
+#add_compile_options(-Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith
+#        -Wwrite-strings -Wformat-security -Wlogical-op -Wenum-conversion -Wdouble-promotion -Wconversion -Wshadow
+#        -Wno-psabi -Wno-variadic-macros -Wno-long-long -fno-check-new -fno-common -fstrict-aliasing)
+
+#Make sure that custom modules are found
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 
 # Only do these if this is the main project, and not if it is included through add_subdirectory
 if(PROJECT_IS_TOP_LEVEL)
-
-  set(CMAKE_CXX_STANDARD 20)
+  set(CMAKE_CXX_STANDARD 23)
   set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
   # Ensure -std=c++xx instead of -std=g++xx
@@ -39,26 +40,17 @@ if(PROJECT_IS_TOP_LEVEL)
   endif()
 endif()
 
-include(FetchContent)
-include(ExternalProject)
-
-find_package(MPI REQUIRED)
-
-# Formatting library
-FetchContent_Declare(
-        fmtlib
-        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-        GIT_TAG 5.3.0)
-# Adds fmt::fmt
-FetchContent_MakeAvailable(fmtlib)
-
+##############################################
+# Add subdirectories
 add_subdirectory(src)
 
 # The executable code is here
-add_subdirectory(apps)
+#add_subdirectory(apps)
 
+set(BUILD_TESTING ON)
 # Testing only available if this is the main app
 # Emergency override TURINGFORGE_CMAKE_BUILD_TESTING provided as well
-if((PROJECT_IS_TOP_LEVEL OR TURINGFORGE_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
+if ((PROJECT_IS_TOP_LEVEL OR TURINGFORGE_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
+  enable_testing()
   add_subdirectory(tests)
 endif()

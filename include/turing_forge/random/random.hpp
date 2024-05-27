@@ -4,8 +4,6 @@
 #include <random>
 #include <type_traits>
 
-#include "turing_forge/core/types.hpp"
-#include "turing_forge/core/node.hpp"
 #include "romu.hpp"
 
 namespace Turingforge::Random {
@@ -52,9 +50,4 @@ namespace Turingforge::Random {
     auto Sample(R &random, InputIterator start, InputIterator end, OutputIterator out, size_t n) -> OutputIterator {
         return std::sample(start, end, out, n, random);
     }
-
-    auto RandomSymbol = [](auto &random) {
-        auto all_types = Turingforge::NodeTypes::GetAllTypes();
-        return *Sample(random, all_types.begin(), all_types.end());
-    };
 }

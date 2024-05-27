@@ -7,7 +7,7 @@
 
 namespace Turingforge {
 
-    // NOLINTBEGIN(*)
+// NOLINTBEGIN(*)
 #define EXPECT(cond) \
     if(!(cond)) \
     { \

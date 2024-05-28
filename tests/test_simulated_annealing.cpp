@@ -19,12 +19,13 @@ TEST_CASE( "Quick check", "[main]" ) {
     int generations = 50;
     int selectedSize = 50;
     double stopScore = 0.99;
+    const auto *target = "Y";
 
     // Dataset
-    const auto *target = "Y";
     auto ds = Turingforge::Dataset("../../data/Poly-10.csv", /*hasHeader=*/true);
     auto inputs = ds.VariableHashes();
     std::erase(inputs, ds.GetVariable(target)->Hash);
+    auto ysHat_ = ds.GetValues(target);
 
     // Initial Population
     int rangeSize = maxSize - minSize + 1;
@@ -40,7 +41,7 @@ TEST_CASE( "Quick check", "[main]" ) {
         for (int i = 0; i < numIndividualsPerExpSize; ++i) {
             auto newInd = btc(random, nvars, expolim);
             newInd.sanitize();
-            newInd.fit();
+            newInd.fit(ds.Ge);
 //            pop.push_back(fitIT(newInd, Xs, ys)); // Assuming Xs and ys are defined elsewhere
         }
     }

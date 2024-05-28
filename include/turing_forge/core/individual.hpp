@@ -13,6 +13,7 @@
 #include "function.hpp"
 #include "types.hpp"
 #include "turing_forge/random/random.hpp"
+#include "turing_forge/error_metrics/error_metrics.hpp"
 
 namespace Turingforge {
 
@@ -160,7 +161,8 @@ namespace Turingforge {
                         Scalar yHat = eval({X});
                         return std::abs(yHat - y);
                     }
-            ) / X.size();
+            ) / static_cast<double>(X.size());
+            //Scalar MAE = Turingforge::MeanAbsoluteError(std::cbegin(X), (std::cend(X), cbegin(y));
 
             Scalar score = 1 / (1 + MAE);
             Fitness = std::isfinite(score) ? score : 0.0;

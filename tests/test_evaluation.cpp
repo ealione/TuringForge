@@ -35,10 +35,12 @@ TEST_CASE("Evaluation correctness", "Basic operations")
         Turingforge::Vector<Turingforge::Scalar>{17.37, 12.43},
         Turingforge::Vector<Turingforge::Function>{
             Turingforge::Function(Turingforge::FunctionType::Exp),
-            Turingforge::Function(Turingforge::FunctionType::Log)},
+            Turingforge::Function(Turingforge::FunctionType::Log)
+        },
         Turingforge::Vector<Turingforge::Vector<Turingforge::Scalar>>{
             {3, 0},
-            {2, 1}}
+            {2, 1}
+        }
     );
     fmt::print("{}\n", Turingforge::IndividualFormatter::Format(individual, ds));
 
@@ -49,7 +51,7 @@ TEST_CASE("Evaluation correctness", "Basic operations")
     for (auto idx = trainingRange.Start(); idx < trainingRange.End(); ++idx) {
         const auto& _row = ds.Values().row(static_cast<int64_t>(idx)).head(ds.Values().cols() -  1);
         Eigen::Map<const Eigen::Matrix<Turingforge::Scalar, Eigen::Dynamic, 1>> _vecX(_row.data(), _row.size());
-        auto _tmp = individual.fit(_vecX);
+        auto _tmp = individual.eval(_vecX);
         XsHat.row(static_cast<int64_t>(idx)) = _tmp;
     }
 

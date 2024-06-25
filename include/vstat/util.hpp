@@ -1,8 +1,8 @@
-#pragma once
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright 2020-2023 Heal Research
 
-#include <iterator>
-#include <type_traits>
-#include <utility>
+#ifndef VSTAT_UTIL_HPP
+#define VSTAT_UTIL_HPP
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #define VSTAT_FORCE_INLINE __attribute__((always_inline)) inline
@@ -26,47 +26,4 @@
 #define VSTAT_NAMESPACE vstat
 #endif
 
-namespace VSTAT_NAMESPACE::detail {
-    // type traits
-    template<typename T, typename... Ts>
-    struct is_any : std::disjunction<std::is_same<T, Ts>...> {
-    };
-
-    template<typename T, typename... Ts>
-    using is_any_t = typename is_any<T, Ts...>::type;
-
-    template<typename T, typename... Ts>
-    inline constexpr bool is_any_v = is_any<T, Ts...>::value;
-
-    template<typename T, typename... Ts>
-    struct are_same : std::conjunction<std::is_same<T, Ts>...> {
-    };
-
-    template<typename T, typename... Ts>
-    using are_same_t = typename are_same<T, Ts...>::type;
-
-    template<typename T, typename... Ts>
-    inline constexpr bool are_same_v = are_same<T, Ts...>::value;
-
-    struct identity {
-        template <typename T>
-        constexpr auto operator()(T&& v) const noexcept -> decltype(std::forward<T>(v))
-        {
-            return std::forward<T>(v);
-        }
-    };
-
-    template<typename T, typename = void>
-    struct is_iterator : std::false_type {
-    };
-
-    template<typename T>
-    struct is_iterator<T, std::void_t<typename std::iterator_traits<T>::iterator_category>> : std::true_type {
-    };
-
-    template<typename T>
-    using is_iterator_t = typename is_iterator<T>::type;
-
-    template<typename T>
-    inline constexpr bool is_iterator_v = is_iterator<T>::value;
-} // namespace VSTAT_NAMESPACE::detail
+#endif

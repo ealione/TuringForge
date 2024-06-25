@@ -15,22 +15,15 @@ TEST_CASE( "Basic Individual" ) {
     std::vector<Turingforge::Scalar> v{0};
     Turingforge::Dataset ds({x}, {v});
 
-    auto check = [&](DT const& dt, const Turingforge::Individual& expr, Turingforge::Scalar expected) {
+    auto check = [&](DT const& dt, const Turingforge::Individual& ind, Turingforge::Scalar expected) {
         Turingforge::Map<std::string, Turingforge::Hash> vars;
-        fmt::print("Check expression {} == {}\n", Turingforge::IndividualFormatter::Format(expr, ds), expected);
-        auto p = expr.GetCoefficients();
-        auto r = Turingforge::Interpreter<Turingforge::Scalar, DT>(dt, ds, expr).Evaluate(p, Turingforge::Range(0, 1));
+        fmt::print("Check expression {} == {}\n", Turingforge::IndividualFormatter::Format(ind, ds), expected);
+        auto p = ind.GetCoefficients();
+        auto r = Turingforge::Interpreter<Turingforge::Scalar, DT>(dt, ds, ind).Evaluate(p, Turingforge::Range(0, 1));
         CHECK(r[0] == expected);
     };
 
     // default ctor
     DT dt;
-    check(dt,
-          Turingforge::Individual(
-            {2},
-            {Turingforge::Function(Turingforge::FunctionType::Sin)},
-            {{2}}
-          ),
-          6
-    );
+    check(dt, Turingforge::Individual({2}, {Turingforge::Function(Turingforge::FunctionType::Sin)}, {{2}}), 6);
 }

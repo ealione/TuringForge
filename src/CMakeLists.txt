@@ -80,9 +80,34 @@ FetchContent_Declare(
 set(EVE_BUILD_DOCUMENTATION OFF)
 set(EVE_BUILD_TEST OFF)
 FetchContent_MakeAvailable(eve)
+
+# MDSpan
+find_package(mdspan QUIET)
+if (NOT mdspan_FOUND)
+    message(STATUS "No installed mdspan found, fetching from Github")
+    include(FetchContent)
+    FetchContent_Declare(
+            mdspan
+            GIT_REPOSITORY https://github.com/kokkos/mdspan.git
+            GIT_TAG        stable
+    )
+    FetchContent_MakeAvailable(mdspan)
+    FetchContent_GetProperties(mdspan)
+    if(NOT mdspan_POPULATED)
+        FetchContent_Populate(mdspan)
+        add_subdirectory(${mdspan_SOURCE_DIR} ${mdspan_BINARY_DIR} EXCLUDE_FROM_ALL)
+    endif()
+endif()
+
+# Sorter vector engine
+FetchContent_Declare(
+        cpp-sort
+        GIT_REPOSITORY https://github.com/Morwenn/cpp-sort.git
+        GIT_TAG 1.15.0
+        GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(cpp-sort)
 ##############################################
 # Create target and set properties
-
 file(GLOB_RECURSE HEADER_LIST CONFIGURE_DEPENDS
         "${PROJECT_SOURCE_DIR}/include/turing_forge/*/*.hpp"
         "${PROJECT_SOURCE_DIR}/include/vstat/*.hpp"
@@ -118,9 +143,11 @@ target_compile_options(turingforge PRIVATE
 
 target_link_libraries(turingforge
         PUBLIC
-            fmt::fmt Eigen3::Eigen unordered_dense::unordered_dense
+            fmt::fmt Eigen3::Eigen unordered_dense::unordered_dense eve::eve
         PRIVATE
-            xxhash fast_float eve::eve
+            xxhash fast_float std::mdspan cpp-sort::cpp-sort
+        INTERFACE
+            std::mdspan
 )
 
 ##############################################

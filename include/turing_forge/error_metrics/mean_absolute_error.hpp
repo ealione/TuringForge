@@ -3,7 +3,9 @@
 #include <iterator>
 #include <type_traits>
 #include <vstat/vstat.hpp>
+
 #include "turing_forge/core/types.hpp"
+#include "turing_forge/core/contracts.hpp"
 
 namespace Turingforge {
 

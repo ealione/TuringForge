@@ -11,7 +11,7 @@ class Individual;
 class PrimitiveSet;
 
 // the creator builds a new tree using the existing pset and allowed inputs
-struct CreatorBase : public OperatorBase<Individual, size_t, Turingforge::Scalar> {
+struct CreatorBase : public OperatorBase<Individual, size_t, Turingforge::Scalar, size_t> {
     CreatorBase(PrimitiveSet const& pset, std::vector<Turingforge::Hash> variables)
         : pset_(pset)
         , variables_(std::move(variables))
@@ -37,7 +37,7 @@ public:
     {
     }
 
-    auto operator()(Turingforge::RandomGenerator& func, size_t terms, Turingforge::Scalar exponent_limit) const -> Individual override;
+    auto operator()(Turingforge::RandomGenerator& func, size_t terms, Turingforge::Scalar exponent_limit, size_t objectives) const -> Individual override;
 
     void SetBias(double bias) { irregularityBias_ = bias; }
     [[nodiscard]] auto GetBias() const -> double { return irregularityBias_; }

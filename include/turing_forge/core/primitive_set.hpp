@@ -30,10 +30,23 @@ namespace Turingforge {
         }
 
     public:
-        static constexpr PrimitiveSetConfig Arithmetic = FunctionType::Constant | FunctionType::Variable | FunctionType::Add | FunctionType::Sub | FunctionType::Mul | FunctionType::Div;
-        static constexpr PrimitiveSetConfig TypeCoherent = Arithmetic | FunctionType::Pow | FunctionType::Exp | FunctionType::Log | FunctionType::Sin | FunctionType::Cos | FunctionType::Square;
-        static constexpr PrimitiveSetConfig Full = TypeCoherent | FunctionType::Aq | FunctionType::Tan | FunctionType::Tanh | FunctionType::Sqrt | FunctionType::Cbrt;
-
+        static constexpr PrimitiveSetConfig Arithmetic =
+                FunctionType::Constant | FunctionType::Variable | FunctionType::Add |
+                FunctionType::Sub | FunctionType::Mul | FunctionType::Div;
+        static constexpr PrimitiveSetConfig TypeCoherent =
+                Arithmetic | FunctionType::Pow | FunctionType::Exp | FunctionType::Log |
+                FunctionType::Sin | FunctionType::Cos | FunctionType::Square;
+        static constexpr PrimitiveSetConfig Full =
+                TypeCoherent | FunctionType::Aq | FunctionType::Tan |
+                FunctionType::Tanh | FunctionType::Sqrt | FunctionType::Cbrt;
+        static constexpr PrimitiveSetConfig Unary =
+                FunctionType::Abs | FunctionType::Acos | FunctionType::Asin |
+                FunctionType::Atan | FunctionType::Cbrt | FunctionType::Ceil |
+                FunctionType::Cos | FunctionType::Cosh | FunctionType::Exp |
+                FunctionType::Floor | FunctionType::Log | FunctionType::Logabs |
+                FunctionType::Log1p | FunctionType::Sin | FunctionType::Sinh |
+                FunctionType::Sqrt | FunctionType::Sqrtabs | FunctionType::Tan |
+                FunctionType::Tanh | FunctionType::Square;
         PrimitiveSet() = default;
 
         explicit PrimitiveSet(PrimitiveSetConfig config)

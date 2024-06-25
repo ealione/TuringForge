@@ -62,6 +62,8 @@ namespace Turingforge {
             return std::countr_zero(static_cast<uint32_t>(type));
         }
 
+        static auto constexpr NoType{FunctionType{123456}};
+
         static auto GetAllTypes() -> std::vector<FunctionType> {
             std::vector<FunctionType> types;
             for (size_t i = 0; i <= static_cast<size_t>(FunctionType::Variable); ++i) {
@@ -114,7 +116,7 @@ namespace Turingforge {
                 case FunctionType::Floor:
                     return "floor";
                 case FunctionType::Log:
-                    return "log";
+                    return "ln";
                 case FunctionType::Logabs:
                     return "logabs";
                 case FunctionType::Log1p:
@@ -205,6 +207,7 @@ namespace Turingforge {
         bool IsEnabled;
 
         Function() = default;
+        Function(const Function& other) = default;
 
         explicit Function(FunctionType type) noexcept
                 : Function(type, static_cast<Turingforge::Hash>(type))
@@ -265,6 +268,8 @@ namespace Turingforge {
         inline auto operator>=(const Function &rhs) const noexcept -> bool {
             return !((*this) < rhs);
         }
+
+        Function& operator=(const Function& other) = default;
 
         [[nodiscard]] inline auto
         IsCommutative() const noexcept -> bool { return Is<FunctionType::Add, FunctionType::Mul, FunctionType::Fmin, FunctionType::Fmax>(); }

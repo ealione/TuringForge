@@ -1,14 +1,8 @@
-// SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: Copyright 2019-2023 Heal Research
-
-#ifndef OPERON_SELECTOR_HPP
-#define OPERON_SELECTOR_HPP
-
 #include "turing_forge/core/individual.hpp"
 #include "turing_forge/core/operator.hpp"
 
 namespace Turingforge {
-// the selector a vector of individuals and returns the index of a selected individual per each call of operator()
+// the selector accepts a vector of individuals and returns the index of a selected individual per each call of operator()
 // this operator is meant to be a lightweight object that is initialized with a population and some other parameters on-the-fly
 class SelectorBase : public OperatorBase<size_t> {
 public:
@@ -47,7 +41,7 @@ private:
 };
 
 
-class OPERON_EXPORT TournamentSelector : public SelectorBase {
+class TournamentSelector : public SelectorBase {
 public:
     explicit TournamentSelector(ComparisonCallback&& cb) 
         : SelectorBase(cb)
@@ -68,7 +62,7 @@ private:
     size_t tournamentSize_;
 };
 
-class OPERON_EXPORT RankTournamentSelector : public SelectorBase {
+class RankTournamentSelector : public SelectorBase {
 public:
     explicit RankTournamentSelector(ComparisonCallback&& cb) : SelectorBase(cb){ } 
     explicit RankTournamentSelector(ComparisonCallback const& cb) : SelectorBase(cb){ } 
@@ -87,7 +81,7 @@ private:
     mutable std::vector<size_t> indices_;
 };
 
-class OPERON_EXPORT ProportionalSelector : public SelectorBase {
+class ProportionalSelector : public SelectorBase {
 public:
     explicit ProportionalSelector(ComparisonCallback&& cb) : SelectorBase(cb) { } 
     explicit ProportionalSelector(ComparisonCallback const& cb) : SelectorBase(cb) { } 
@@ -107,7 +101,7 @@ private:
     size_t idx_ = 0;
 };
 
-class OPERON_EXPORT RandomSelector : public SelectorBase {
+class RandomSelector : public SelectorBase {
 public:
     auto operator()(Turingforge::RandomGenerator& random) const -> size_t override
     {
@@ -116,5 +110,3 @@ public:
 };
 
 } //namespace Turingforge
-
-#endif

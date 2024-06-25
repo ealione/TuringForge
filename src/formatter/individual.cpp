@@ -7,7 +7,7 @@ namespace Turingforge {
     auto IndividualFormatter::FormatNode(Individual const& individual, Turingforge::Map<Turingforge::Hash, std::string> const& variableNames, size_t i, fmt::memory_buffer& current, int decimalPrecision) -> void
     {
         if (i == std::numeric_limits<size_t>::max()) return;
-        const auto& tp = individual[i];
+        const auto& tp = individual.GetAllDataAt(i);
         const auto& coef = std::get<0>(tp);
         const auto& func = std::get<1>(tp);
         const auto& poly = std::get<2>(tp);

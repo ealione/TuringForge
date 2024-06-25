@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: Copyright 2019-2023 Heal Research
-
-#ifndef OPERON_REINSERTER_HPP
-#define OPERON_REINSERTER_HPP
+#pragma once
 
 #include <algorithm>
+
 #include "turing_forge/core/operator.hpp"
 #include "turing_forge/core/individual.hpp"
 
@@ -27,7 +24,7 @@ private:
     ComparisonCallback comp_;
 };
 
-class OPERON_EXPORT KeepBestReinserter : public ReinserterBase {
+class KeepBestReinserter : public ReinserterBase {
 public:
     explicit KeepBestReinserter(ComparisonCallback const& cb)
         : ReinserterBase(cb)
@@ -53,7 +50,7 @@ public:
     }
 };
 
-class OPERON_EXPORT ReplaceWorstReinserter : public ReinserterBase {
+class ReplaceWorstReinserter : public ReinserterBase {
 public:
     explicit ReplaceWorstReinserter(ComparisonCallback const& cb)
         : ReinserterBase(cb)
@@ -74,5 +71,3 @@ public:
 };
 
 } // namespace Turingforge
-
-#endif

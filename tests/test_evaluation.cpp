@@ -52,7 +52,9 @@ TEST_CASE("Evaluation correctness", "Basic operations")
         const auto& _row = ds.Values().row(static_cast<int64_t>(idx)).head(ds.Values().cols() -  1);
         Eigen::Map<const Eigen::Matrix<Turingforge::Scalar, Eigen::Dynamic, 1>> _vecX(_row.data(), _row.size());
         auto _tmp = individual.eval(_vecX);
-        XsHat.row(static_cast<int64_t>(idx)) = _tmp;
+        Eigen::RowVectorXd row_vector(1, individual.Functions.size());
+        row_vector << _tmp;
+        XsHat.row(static_cast<int64_t>(idx)) = row_vector;
     }
 
     // Transpose XsHat

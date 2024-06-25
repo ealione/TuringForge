@@ -15,6 +15,10 @@ set(TEST_SOURCES
         test_selection.cpp
         test_dispatch_table.cpp
         test_simulated_annealing.cpp
+        test_mutation.cpp
+        test_error_metrics.cpp
+        test_nondominantsort.cpp
+        test_regression.cpp
 )
 
 string(REPLACE ".cpp" "" BASENAMES "${TEST_SOURCES}")

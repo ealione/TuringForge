@@ -15,6 +15,12 @@ namespace Turingforge::Random {
         return Dist(a, b)(random);
     }
 
+    template<typename R>
+    auto RandomProbability(R &random) -> double {
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        return dist(random);
+    }
+
     template<typename R, typename InputIterator>
     auto Sample(R &random, InputIterator start, InputIterator end) -> InputIterator {
         auto dist = std::distance(start, end);

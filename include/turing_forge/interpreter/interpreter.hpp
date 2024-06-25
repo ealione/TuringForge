@@ -12,21 +12,42 @@
 
 namespace Turingforge {
 
+    namespace detail {
+        // aligned allocation
+        template<class T>
+        struct Deleter {
+            auto operator()(T* p) const -> void {
+                std::free(p); // NOLINT
+            }
+        };
+
+        template<class T>
+        using AlignedUnique = std::unique_ptr<T[], Deleter<T>>;
+
+        template<class ElementType, size_t ByteAlignment>
+        auto AllocateAligned(auto const numElements) -> AlignedUnique<ElementType>
+        {
+            auto const numBytes = numElements * sizeof(ElementType);
+            auto* ptr = std::aligned_alloc(ByteAlignment, numBytes);
+            return AlignedUnique<ElementType>(static_cast<ElementType*>(ptr));
+        }
+    }  // namespace detail
+
     enum class LikelihoodType : int { Gaussian, Poisson };
 
     template<typename T>
     struct InterpreterBase {
         // evaluate model output
-        virtual auto Evaluate(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range, Turingforge::Span<T> result) const -> void = 0;
-        virtual auto Evaluate(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range) const -> std::vector<T> = 0;
+        virtual auto Evaluate(Turingforge::Span<T const> coeff, Turingforge::Range range, Turingforge::Span<T> result) const -> void = 0;
+        virtual auto Evaluate(Turingforge::Span<T const> coeff, Turingforge::Range range) const -> std::vector<T> = 0;
 
         // evaluate model jacobian in reverse mode
-        virtual auto JacRev(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range, Turingforge::Span<T> jacobian) const -> void = 0;
-        virtual auto JacRev(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range) const -> Eigen::Array<T, -1, -1> = 0;
+        virtual auto JacRev(Turingforge::Span<T const> coeff, Turingforge::Range range, Turingforge::Span<T> jacobian) const -> void = 0;
+        virtual auto JacRev(Turingforge::Span<T const> coeff, Turingforge::Range range) const -> Eigen::Array<T, -1, -1> = 0;
 
         // evaluate model jacobian in forward mode
-        virtual auto JacFwd(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range, Turingforge::Span<T> jacobian) const -> void = 0;
-        virtual auto JacFwd(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range) const -> Eigen::Array<T, -1, -1> = 0;
+        virtual auto JacFwd(Turingforge::Span<T const> coeff, Turingforge::Range range, Turingforge::Span<T> jacobian) const -> void = 0;
+        virtual auto JacFwd(Turingforge::Span<T const> coeff, Turingforge::Range range) const -> Eigen::Array<T, -1, -1> = 0;
 
         // getters
         [[nodiscard]] virtual auto GetTree() const -> Turingforge::Individual const& = 0;
@@ -49,38 +70,40 @@ namespace Turingforge {
         auto Primal() const { return primal_; }
         auto Trace() const { return trace_; }
 
-        inline auto Evaluate(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range, Turingforge::Span<T> result) const -> void final {
+        inline auto Evaluate(Turingforge::Span<T const> coeff, Turingforge::Range range, Turingforge::Span<T> result) const -> void final {
             InitContext(coeff, range);
 
-            auto res = primal_.col(primal_.cols()-1);
             auto const len{ static_cast<int64_t>(range.Size()) };
 
             constexpr int64_t S{ BatchSize };
+            auto* ptr = primal_.data_handle() + (primal_.extent(1) - 1) * S;
+
             for (auto row = 0L; row < len; row += S) {
                 ForwardPass(range, row, /*trace=*/false);
 
                 if (std::ssize(result) == len) {
                     auto rem = std::min(S, len - row);
-                    Eigen::Map<Eigen::Array<T, -1, 1>>(result.data(), result.size()).segment(row, rem) = res.head(rem);
+                    std::ranges::copy(std::span(ptr, rem), result.data() + row);
                 }
             }
         }
 
-        inline auto Evaluate(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range) const -> std::vector<T> final {
+        inline auto Evaluate(Turingforge::Span<T const> coeff, Turingforge::Range range) const -> std::vector<T> final {
             std::vector<T> res(range.Size());
             Evaluate(coeff, range, {res.data(), res.size()});
             return res;
         }
 
-        inline auto JacRev(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range, Turingforge::Span<T> jacobian) const -> void final {
+        inline auto JacRev(Turingforge::Span<T const> coeff, Turingforge::Range range, Turingforge::Span<T> jacobian) const -> void final {
             InitContext(coeff, range);
             auto const len{ static_cast<int64_t>(range.Size()) };
-            auto const& polynomials = individual_.get().GetCoefficients();
-            auto const nn { std::ssize(polynomials) };
+            auto const& nodes = individual_.get().Coefficients;
+            auto const nn { std::ssize(nodes) };
 
             constexpr int64_t S{ BatchSize };
-            trace_ = Eigen::Array<T, S, -1>::Zero(S, nn);
-            trace_.col(nn-1).setConstant(T{1});
+            traceStorage_ = detail::AllocateAligned<T, Backend::DefaultAlignment>(S * nn);
+            trace_ = Backend::View<T, S>(traceStorage_.get(), S, nn);
+            Fill<T, S>(trace_, nn-1, T{1});
 
             Eigen::Map<Eigen::Array<T, -1, -1>> jac(jacobian.data(), len, coeff.size());
 
@@ -90,22 +113,23 @@ namespace Turingforge {
             }
         }
 
-        inline auto JacRev(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range) const -> Eigen::Array<T, -1, -1> final {
+        inline auto JacRev(Turingforge::Span<T const> coeff, Turingforge::Range range) const -> Eigen::Array<T, -1, -1> final {
             auto const nr{ static_cast<int64_t>(range.Size()) };
             Eigen::Array<T, -1, -1> jacobian(nr, coeff.size());
             JacRev(coeff, range, { jacobian.data(), static_cast<size_t>(jacobian.size()) });
             return jacobian;
         }
 
-        auto JacFwd(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range, Turingforge::Span<T> jacobian) const -> void final {
+        auto JacFwd(Turingforge::Span<T const> coeff, Turingforge::Range range, Turingforge::Span<T> jacobian) const -> void final {
             InitContext(coeff, range);
             auto const len{ static_cast<int>(range.Size()) };
-            auto const& polynomials = individual_.get().GetCoefficients();
-            auto const nn   { std::ssize(polynomials) };
+            auto const& nodes = individual_.get().Coefficients;
+            auto const nn   { std::ssize(nodes) };
 
             constexpr int64_t S{ BatchSize };
-            trace_ = DTable::template Array<T>::Zero(S, nn);
-            trace_.col(nn-1).setConstant(T{1});
+            traceStorage_ = detail::AllocateAligned<T, Backend::DefaultAlignment>(S * nn);
+            trace_ = Backend::View<T, S>(traceStorage_.get(), S, nn);
+            Fill<T, S>(trace_, nn-1, T{1});
 
             Eigen::Map<Eigen::Array<T, -1, -1>> jac(jacobian.data(), len, coeff.size());
 
@@ -115,7 +139,7 @@ namespace Turingforge {
             }
         }
 
-        inline auto JacFwd(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range) const -> Eigen::Array<T, -1, -1> final {
+        inline auto JacFwd(Turingforge::Span<T const> coeff, Turingforge::Range range) const -> Eigen::Array<T, -1, -1> final {
             auto const nr{ static_cast<int64_t>(range.Size()) };
             Eigen::Array<T, -1, -1> jacobian(nr, coeff.size());
             JacFwd(coeff, range, { jacobian.data(), static_cast<size_t>(jacobian.size()) });
@@ -127,23 +151,23 @@ namespace Turingforge {
 
         auto GetDispatchTable() const { return dtable_.get(); }
 
-        static inline auto Evaluate(Turingforge::Individual const& individual, Turingforge::Dataset const& dataset, Turingforge::Range const range) {
-            auto coeff = individual.GetCoefficients();
+        static inline auto Evaluate(Turingforge::Individual const& tree, Turingforge::Dataset const& dataset, Turingforge::Range const range) {
+            auto coeff = tree.GetCoefficients();
             DTable dt;
-            return Interpreter{dt, dataset, individual}.Evaluate(coeff, range);
+            return Interpreter{dt, dataset, tree}.Evaluate(coeff, range);
         }
 
-        static inline auto Evaluate(Turingforge::Individual const& individual, Turingforge::Dataset const& dataset, Turingforge::Range const range, Turingforge::Span<T const> coeff) {
+        static inline auto Evaluate(Turingforge::Individual const& tree, Turingforge::Dataset const& dataset, Turingforge::Range const range, Turingforge::Span<T const> coeff) {
             DTable dt;
-            return Interpreter{dt, dataset, individual}.Evaluate(coeff, range);
+            return Interpreter{dt, dataset, tree}.Evaluate(coeff, range);
         }
 
     private:
         // private members
         using Data = std::tuple<T,
-                Eigen::Map<Eigen::Array<Turingforge::Scalar, -1, 1> const>,
-                std::optional<Dispatch::Callable<typename DTable::template Array<T>> const>,
-        std::optional<Dispatch::CallableDiff<typename DTable::template Array<T>> const> >;
+                std::span<Turingforge::Scalar const>,
+                std::optional<Dispatch::Callable<T, BatchSize> const>,
+        std::optional<Dispatch::CallableDiff<T, BatchSize> const> >;
 
         std::reference_wrapper<DTable const> dtable_;
         std::reference_wrapper<Turingforge::Dataset const> dataset_;
@@ -151,15 +175,19 @@ namespace Turingforge {
 
         // mutable internal state (used by all the forward/reverse passes)
         mutable std::vector<Data> context_;
-        mutable typename DTable::template Array<T> primal_;
-        mutable typename DTable::template Array<T> trace_;
+
+        mutable Backend::View<T, BatchSize> primal_;
+        mutable Backend::View<T, BatchSize> trace_;
+
+        mutable detail::AlignedUnique<T> primalStorage_;
+        mutable detail::AlignedUnique<T> traceStorage_;
 
         // private methods
         inline auto ForwardPass(Turingforge::Range range, int row, bool trace = false) const -> void {
             auto const start { static_cast<int64_t>(range.Start()) };
             auto const len   { static_cast<int64_t>(range.Size()) };
-            auto const& polynomials = individual_.get().GetCoefficients();
-            auto const nn = std::ssize(polynomials);
+            auto const& functions = individual_.get().Functions;
+            auto const nn = std::ssize(functions);
             constexpr int64_t S{ BatchSize };
 
             auto rem = std::min(S, len - row);
@@ -168,37 +196,43 @@ namespace Turingforge {
             // forward pass - compute primal and trace
             for (auto i = 0L; i < nn; ++i) {
                 auto const& [ p, v, f, df ] = context_[i];
-                std::invoke(*f, polynomials, primal_, i, rg);
-//                if (polynomials[i].IsVariable()) {
-//                    primal_.col(i).head(rem) = p * v.segment(row, rem).template cast<T>();
-//                } else if (f) {
-//                    std::invoke(*f, polynomials, primal_, i, rg);
+                auto* ptr = primal_.data_handle() + i * S;
+
+                if (functions[i].IsVariable()) {
+                    std::ranges::transform(v.subspan(row, rem), ptr, [p](auto x) { return x * p; });
+                } else if (f) {
+                    std::invoke(*f, functions, primal_, i, rg);
 
                     // first compute the partials
-//                    if (trace && df) {
-//                        for (auto j : Individual::GetFunctions(i)) {
-//                            std::invoke(*df, polynomials, primal_, trace_, i, j);
+                    if (trace && df) {
+//                        for (auto j : Individual::Indices(functions, i)) {
+//                            std::invoke(*df, functions, primal_, trace_, i, j);
 //                        }
-//                    }
+                    }
 
                     // apply weight after partials are computed
-                    if (p != T{1}) { primal_.col(i).head(rem) *= p; }
-//                }
+                    if (p != T{1}) {
+                        std::ranges::transform(std::span(ptr, rem), ptr, [p](auto x) { return x * p; });
+                    }
+                }
             }
         }
 
         inline auto ForwardTrace(Turingforge::Range range, int row, Eigen::Ref<Eigen::Array<T, -1, -1>> jac) const -> void {
             auto const len   { static_cast<int64_t>(range.Size()) };
-            auto const& polynomials{ individual_.get().GetCoefficients() };
-            auto const nn { std::ssize(polynomials) };
+            auto const& nodes{individual_.get().Coefficients };
+            auto const nn { std::ssize(nodes) };
             constexpr int64_t S{ BatchSize };
             auto const rem   { std::min(S, len - row) };
 
-            typename DTable::template Array<T> dot(S, nn);
+            Eigen::Array<T, S, -1> dot(S, nn);
             std::vector<int64_t> cidx(jac.cols());
 
+            Eigen::Map<Eigen::Array<T, S, -1>> primal(primal_.data_handle(), S, nn);
+            Eigen::Map<Eigen::Array<T, S, -1>> trace(trace_.data_handle(), S, nn);
+
 //            for (auto i = 0L, j = 0L; i < nn; ++i) {
-//                if (polynomials[i].Optimize) { cidx[j++] = i; }
+//                if (nodes[i].Optimize) { cidx[j++] = i; }
 //            }
 
             auto k{0};
@@ -207,67 +241,68 @@ namespace Turingforge {
                 dot.col(c).head(rem).setConstant(T{1});
 
 //                for (auto i = 0; i < nn; ++i) {
-//                    for (auto x : Individual::GetFunctions(i))  {
+//                    for (auto x : Individual::Indices(nodes, i)) {
 //                        auto j{ static_cast<int64_t>(x) };
-//                        dot.col(i).head(rem) += dot.col(j).head(rem) * trace_.col(j).head(rem) * std::get<0>(context_[i]);
+//                        if (nodes[j].IsLeaf() && j != c) { continue; }
+//                        dot.col(i).head(rem) += dot.col(j).head(rem) * trace.col(j).head(rem) * std::get<0>(context_[i]);
 //                    }
 //                }
 
-                jac.col(k++).segment(row, rem) = dot.col(nn-1).head(rem) * primal_.col(c).head(rem) / std::get<0>(context_[c]);
+                jac.col(k++).segment(row, rem) = dot.col(nn-1).head(rem) * primal.col(c).head(rem) / std::get<0>(context_[c]);
             }
         }
 
-        auto ReverseTrace(Turingforge::Range range, int row, Eigen::Ref<Eigen::Array<T, -1, -1>> jac) const -> void {
-            auto const len   { static_cast<int64_t>(range.Size()) };
-            auto const& polynomials{ individual_.get().GetCoefficients() };
-            auto const nn    { std::ssize(polynomials) };
+        auto ReverseTrace(Turingforge::Range /*range*/, int /*row*/, Eigen::Ref<Eigen::Array<T, -1, -1>> /*jac*/) const -> void {
+//            auto const len   { static_cast<int64_t>(range.Size()) };
+            auto const& nodes{individual_.get().Coefficients };
+            auto const nn    { std::ssize(nodes) };
             constexpr int64_t S{ BatchSize };
-            auto const rem   { std::min(S, len - row) };
+//            auto const rem   { std::min(S, len - row) };
 
-            auto k{jac.cols()};
+//            auto k{jac.cols()};
+            Eigen::Map<Eigen::Array<T, S, -1>> primal(primal_.data_handle(), S, nn);
+            Eigen::Map<Eigen::Array<T, S, -1>> trace(trace_.data_handle(), S, nn);
+
             for (auto i = nn-1; i >= 0L; --i) {
-                auto w = std::get<0>(context_[i]);
+//                auto w = std::get<0>(context_[i]);
 
-//                if (polynomials[i].Optimize) {
-//                    jac.col(--k).segment(row, rem) = trace_.col(i).head(rem) * primal_.col(i).head(rem) / w;
-//                }
-
-//                for (auto j : Individual::GetFunctions(i)) {
+//                for (auto j : Individual::Indices(nodes, i)) {
 //                    auto const x { static_cast<int64_t>(j) };
-//                    trace_.col(x).head(rem) *= trace_.col(i).head(rem) * w;
+//                    trace.col(x).head(rem) *= trace.col(i).head(rem) * w;
 //                }
             }
         }
 
-        // init individual info into context_ and initializes primal_ columns
-        auto InitContext(Turingforge::Span<Turingforge::Scalar const> coeff, Turingforge::Range range) const {
-            auto const& polynomials{ individual_.get().GetFunctions() };
+        // init tree info into context_ and initializes primal_ columns
+        auto InitContext(Turingforge::Span<T const> coeff, Turingforge::Range range) const {
+            auto const& functions{individual_.get().Functions };
             auto const nr { static_cast<int64_t>(range.Size()) };
-            auto const nn { std::ssize(polynomials) };
+            auto const nn { std::ssize(functions) };
 
             constexpr int64_t S{ BatchSize };
-            primal_ = Eigen::Array<T, S, -1>::Zero(S, nn);
+            primalStorage_ = detail::AllocateAligned<T, Backend::DefaultAlignment>(S * nn);
+            std::ranges::fill_n(primalStorage_.get(), S * nn, T{0});
+            primal_ = Backend::View<T, BatchSize>(primalStorage_.get(), S, nn);
+
             context_.clear();
             context_.reserve(nn);
 
             auto const& dt = dtable_.get();
-            // aggregate necessary info about the individual into a context object
+            // aggregate necessary info about the tree into a context object
             for (int64_t i = 0, j = 0; i < nn; ++i) {
-                auto const& n = polynomials[i];
-                auto const* ptr      = n.IsVariable() ? dataset_.get().GetValues(n.HashValue).subspan(range.Start(), range.Size()).data() : nullptr;
+                auto const& f = functions[i];
+                auto const* ptr      = f.IsVariable() ? dataset_.get().GetValues(f.HashValue).subspan(range.Start(), range.Size()).data() : nullptr;
                 auto variableValues  = std::tuple_element_t<1, Data>(ptr, nr);
-                auto nodeCoefficient = !coeff.empty() ? T{coeff[j++]} : T{n.Value};
-                auto nodeFunction    = dt.template TryGetFunction<T>(n.HashValue);
-                auto nodeDerivative  = dt.template TryGetDerivative<T>(n.HashValue);
+                auto indCoefficient = !coeff.empty() ? T{coeff[j++]} : T{f.Value};
+                auto indFunction    = dt.template TryGetFunction<T>(f.HashValue);
+                auto indDerivative  = dt.template TryGetDerivative<T>(f.HashValue);
 
-                context_.push_back({ nodeCoefficient, variableValues, nodeFunction, nodeDerivative });
-
-                if (n.IsConstant()) { primal_.col(i).setConstant(nodeCoefficient); }
+                context_.push_back({indCoefficient, variableValues, indFunction, indDerivative });
             }
         }
     };
 
-    // convenience method to interpret many trees in parallel
+// convenience method to interpret many trees in parallel (mostly useful from the python wrapper)
     auto EvaluateTrees(std::vector<Turingforge::Individual> const& trees, Turingforge::Dataset const& dataset, Turingforge::Range range, size_t nthread = 0) -> std::vector<std::vector<Turingforge::Scalar>>;
     auto EvaluateTrees(std::vector<Turingforge::Individual> const& trees, Turingforge::Dataset const& dataset, Turingforge::Range range, std::span<Turingforge::Scalar> result, size_t nthread = 0) -> void;
 } // namespace Turingforge

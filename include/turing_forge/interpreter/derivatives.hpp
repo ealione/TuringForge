@@ -6,286 +6,210 @@
 #include "dual.hpp"
 
 namespace Turingforge {
-    namespace detail {
-        template<typename T>
-        inline auto IsNaN(T value) { return std::isnan(value); }
-
-        template<>
-        inline auto IsNaN<Turingforge::Dual>(Turingforge::Dual value) { return ceres::isnan(value); } // NOLINT
-
-        template<typename Compare>
-        struct FComp {
-            auto operator()(auto x, auto y) const {
-                using T = std::common_type_t<decltype(x), decltype(y)>;
-                if ((IsNaN(x) && IsNaN(y)) || (x == y)) {
-                    return std::numeric_limits<T>::quiet_NaN();
-                }
-                if (IsNaN(x)) { return T{0}; }
-                if (IsNaN(y)) { return T{1}; }
-                return static_cast<T>(Compare{}(T{x}, T{y}));
-            }
-        };
-    } // namespace detail
-
-    template<Turingforge::FunctionType N = Turingforge::FunctionType::Add>
+    // default function to catch any missing template specializations
+    template<typename T, Turingforge::FunctionType N  = Turingforge::FunctionTypes::NoType, std::size_t S = Backend::BatchSize<T>>
     struct Diff {
-        auto operator()(auto const& /*nodes*/, auto const& /*primal*/, auto& trace, int /*parent*/, int j) {
-            trace.col(j).setConstant(scalar_t<decltype(trace)>{1});
+        auto operator()(std::vector<Turingforge::Function> const&, Backend::View<T const, S>, Backend::View<T>, std::integral auto, std::integral auto) {
+            throw std::runtime_error(fmt::format("backend error: missing specialization for derivative: {}\n", Turingforge::Function{N}.Name()));
         }
     };
 
-    template<Turingforge::FunctionType N = Turingforge::FunctionType::Add>
-    struct Diff2 {
-        auto operator()(auto const& /*nodes*/, auto const& /*primal*/, auto& trace, int /*parent*/, int j) {
-            trace.col(j).setConstant(scalar_t<decltype(trace)>{0});
+    // n-ary functions
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Add, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Add<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template<>
-    struct Diff<Turingforge::FunctionType::Mul> {
-        auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, int i, int j) {
-            trace.col(j) = primal.col(i) / primal.col(j);
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Sub, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Sub<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template<>
-    struct Diff2<Turingforge::FunctionType::Mul> {
-        auto operator()(auto const& /*nodes*/, auto const& /*primal*/, auto& trace, int /*parent*/, int j) {
-            trace.col(j).setConstant(scalar_t<decltype(trace)>{1});
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Mul, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Mul<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template<>
-    struct Diff<Turingforge::FunctionType::Sub> {
-        auto operator()(auto const& nodes, auto const& /*primal*/, auto& trace, int i, int j) {
-            auto v = (nodes[i].Arity == 1 || j < i-1) ? -1 : +1;
-            trace.col(j).setConstant(scalar_t<decltype(trace)>(v));
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Div, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Div<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template<>
-    struct Diff2<Turingforge::FunctionType::Sub> {
-        auto operator()(auto const& /*nodes*/, auto const& /*primal*/, auto& trace, int /*parent*/, int j) {
-            trace.col(j).setConstant(scalar_t<decltype(trace)>{0});
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Fmin, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Min<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template<>
-    struct Diff<Turingforge::FunctionType::Div> {
-        auto operator()(auto const& nodes, auto const& primal, auto& trace, int i, int j) {
-            auto const& n = nodes[i];
-
-            if (n.Arity == 1) {
-                trace.col(j) = -primal.col(j).square().inverse();
-            } else {
-                auto v = scalar_t<decltype(trace)>{1.0};
-                trace.col(j) = (j == i-1 ? +v : -v) * primal.col(i) / primal.col(j);
-            }
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Fmax, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Max<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template<>
-    struct Diff2<Turingforge::FunctionType::Div> {
-        auto operator()(auto const& nodes, auto const& primal, auto& trace, int i, int j) {
-            auto const& n = nodes[i];
-
-            if (n.Arity == 1) {
-                trace.col(j) = 2 * primal.col(j).pow(scalar_t<decltype(trace)>{3.0}).inverse();
-            } else {
-                auto v = scalar_t<decltype(trace)>{1.0};
-                trace.col(j) = (j == i-1 ? +v : -v) * primal.col(i) / primal.col(j);
-            }
+    // binary functions
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Aq, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Aq<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Aq> {
-        auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, int i, int j) {
-            if (j == i-1) {
-                // first arg
-                trace.col(j) = primal.col(i) / primal.col(j);
-            } else {
-                // second arg
-                trace.col(j) = -primal.col(j) * primal.col(i).pow(scalar_t<decltype(trace)>(3)) / primal.col(i-1).square();
-            }
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Pow, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Pow<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Pow> {
-        auto operator()(auto const& nodes, auto const& primal, auto& trace, auto i, auto j)
-        {
-            if (j == i-1) {
-                // first arg
-                auto const k = j - (nodes[j].Length + 1);
-                trace.col(j) = primal.col(i) * primal.col(k) / primal.col(j);
-            } else {
-                // second arg
-                auto const k = i - 1;
-                trace.col(j) = primal.col(i) * primal.col(k).log();
-            }
+    // unary functions
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Abs, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Abs<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Fmin> {
-        auto operator()(auto const& nodes, auto const& primal, auto& trace, auto i, auto j)
-        {
-            auto k = j == i-1 ? (j - nodes[j].Length - 1) : i-1;
-            trace.col(j) = primal.col(j).binaryExpr(primal.col(k), detail::FComp<std::less<>>{});
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Acos, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Acos<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Fmax> {
-        auto operator()(auto const& nodes, auto const& primal, auto& trace, auto i, auto j)
-        {
-            auto k = j == i-1 ? (j - nodes[j].Length - 1) : i-1;
-            trace.col(j) = primal.col(j).binaryExpr(primal.col(k), detail::FComp<std::greater<>>{});
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Asin, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Asin<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Square> {
-        auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = scalar_t<decltype(trace)>{2} * primal.col(j);
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Atan, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Atan<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Abs> {
-        auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = primal.col(j).sign();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Cbrt, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Cbrt<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Exp> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto i, auto j)
-        {
-            trace.col(j) = primal.col(i);
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Ceil, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Ceil<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Log> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = primal.col(j).inverse();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Cos, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Cos<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Logabs> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = primal.col(j).sign() / primal.col(j).abs();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Cosh, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Cosh<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Log1p> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = (primal.col(j) + scalar_t<decltype(trace)>{1}).inverse();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Exp, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Exp<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Sin> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = primal.col(j).cos();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Floor, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Floor<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Sinh> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = primal.col(j).cosh();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Log, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Log<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Cos> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = -primal.col(j).sin();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Logabs, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Logabs<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Cosh> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = primal.col(j).sinh();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Log1p, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Log1p<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Tan> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = scalar_t<decltype(trace)>{1} + primal.col(j).tan().square();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Sin, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Sin<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Tanh> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = scalar_t<decltype(trace)>{1} - primal.col(j).tanh().square();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Sinh, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Sinh<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Asin> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = (scalar_t<decltype(trace)>{1} - primal.col(j).square()).sqrt().inverse();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Sqrt, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Sqrt<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Acos> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = -(scalar_t<decltype(trace)>{1} - primal.col(j).square()).sqrt().inverse();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Sqrtabs, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Sqrtabs<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Atan> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto /*i*/, auto j)
-        {
-            trace.col(j) = (scalar_t<decltype(trace)>{1} + primal.col(j).square()).inverse();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Square, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Square<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Sqrt> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto i, auto j)
-        {
-            trace.col(j) = (scalar_t<decltype(trace)>{2} * primal.col(i)).inverse();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Tan, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Tan<T, S>(nodes, primal, trace, i, j);
         }
     };
 
-    template <>
-    struct Diff<Turingforge::FunctionType::Sqrtabs> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto i, auto j)
-        {
-            trace.col(j) = sign(primal.col(j)) / (scalar_t<decltype(trace)>{2} * primal.col(i));
-        }
-    };
-
-    template <>
-    struct Diff<Turingforge::FunctionType::Cbrt> {
-        inline auto operator()(auto const& /*nodes*/, auto const& primal, auto& trace, auto i, auto j)
-        {
-            trace.col(j) = (scalar_t<decltype(trace)>{3} * (primal.col(i)).square()).inverse();
+    template<typename T, std::size_t S>
+    struct Diff<T, Turingforge::FunctionType::Tanh, S> {
+        auto operator()(std::vector<Turingforge::Function> const& nodes, Backend::View<T const, S> primal, Backend::View<T> trace, std::integral auto i, std::integral auto j) {
+            Backend::Tanh<T, S>(nodes, primal, trace, i, j);
         }
     };
 } // namespace Turingforge

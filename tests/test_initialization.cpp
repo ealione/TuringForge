@@ -86,19 +86,20 @@ TEST_CASE("Create Individuals")
     std::vector<size_t> lengths(n);
 
     SECTION("Simple Individual") {
-        auto individual = btc(random, 2, 3);
+        auto individual = btc(random, 2, 3, 1);
     }
 
     SECTION("Simple Evaluation") {
         using Data = Turingforge::Vector<Turingforge::Scalar>;
         Data X {0.95, 3.75};
+        Eigen::VectorXd vecX = Eigen::Map<const Eigen::VectorXd>(X.data(), X.size());
 
         auto individual = Turingforge::Individual(
                 Turingforge::Vector<Turingforge::Scalar>{17.36912419791657},
                 Turingforge::Vector<Turingforge::Function>{Turingforge::Function(Turingforge::FunctionType::Exp)},
                 Turingforge::Vector<Turingforge::Vector<Turingforge::Scalar>>{{3, 0}}
                 );
-        // fmt::print("{}\n", Turingforge::IndividualFormatter::Format(individual, ds));
-        REQUIRE(individual.eval(X) == 40.93842704843804);
+         fmt::print("{}\n", Turingforge::IndividualFormatter::Format(individual, ds));
+        REQUIRE(individual.eval(vecX) == 40.93842704843804);
     }
 }

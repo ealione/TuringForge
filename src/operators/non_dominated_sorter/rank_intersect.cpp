@@ -46,7 +46,7 @@ namespace detail {
 
         auto b = static_cast<int>(i / D) + lo;
 
-        for (auto j = b, k = lo; k <= hi; ++k, ++j) {                // iterate over bitset blocks
+        for (auto j = b, k = lo; k <= hi; ++k, ++j) {                      // iterate over bitset blocks
             auto x = s[k] & curr[j];                                       // final set as intersection of dominance set and rank set
             if (x == 0UL) { continue; }
             auto o = j * D;

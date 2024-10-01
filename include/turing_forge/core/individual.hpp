@@ -63,6 +63,7 @@ namespace Turingforge {
             return Individual{it};
         }
 
+        // Copy assignment operator
         Individual& operator=(const Individual& other) {
             if (this != &other) {
                 Length = other.Length;
@@ -70,6 +71,19 @@ namespace Turingforge {
                 Coefficients = other.Coefficients;
                 Functions = other.Functions;
                 Polynomials = other.Polynomials;
+            }
+            return *this;
+        }
+
+        // Move assignment operator
+        Individual& operator=(Individual&& other) noexcept {
+            if (this != &other) {
+                Rank = other.Rank;
+                Length = other.Length;
+                Fitness = std::move(other.Fitness);
+                Coefficients = std::move(other.Coefficients);
+                Functions = std::move(other.Functions);
+                Polynomials = std::move(other.Polynomials);
             }
             return *this;
         }
@@ -92,6 +106,10 @@ namespace Turingforge {
 
         [[nodiscard]] auto GetPolynomials() const {
             return Polynomials;
+        }
+
+        [[nodiscard]] inline auto GetCoefficientsCount() const {
+            return Coefficients.size();
         }
 
         // TODO: should there be a backup here, just in case we want to revert?

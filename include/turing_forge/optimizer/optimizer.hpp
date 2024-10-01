@@ -157,13 +157,13 @@ struct SGDOptimizer final : public OptimizerBase {
         Turingforge::Interpreter<Turingforge::Scalar, DTable> interpreter{dtable, dataset, individual};
         LossFunction loss{rng, interpreter, target, range, batchSize};
 
-        auto cost = [&](auto const& coeff) {
-            auto pred = interpreter.Evaluate(coeff, range);
+        auto cost = [&]() {
+            auto pred = interpreter.Evaluate(range);
             return 0.5 * Turingforge::SumOfSquaredErrors(pred.begin(), pred.end(), target.begin());
         };
 
         auto coeff = individual.GetCoefficients();
-        auto const f0 = cost(coeff);
+        auto const f0 = cost();
         OptimizerSummary summary;
         summary.InitialParameters = coeff;
         summary.InitialCost = f0;
@@ -173,7 +173,7 @@ struct SGDOptimizer final : public OptimizerBase {
         Eigen::Map<Eigen::Array<Turingforge::Scalar, -1, 1> const> x0(coeff.data(), std::ssize(coeff));
         auto x = solver.Optimize(x0, iterations);
         std::copy(x.begin(), x.end(), coeff.begin());
-        auto const f1 = cost(coeff);
+        auto const f1 = cost();
 
         summary.FinalParameters = coeff;
         summary.FinalCost = f1;

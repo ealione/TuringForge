@@ -66,22 +66,59 @@ namespace Turingforge {
         return individual;
     }
 
+    // auto ReplaceInteractionMutation::operator()(Turingforge::RandomGenerator& random, Individual individual) const -> Individual
+    // {
+    //     auto oldLen = individual.Length + 1U;
+    //
+    //     using Signed = std::make_signed<size_t>::type;
+    //
+    //     // the correction below is necessary because it can happen that maxLength_ < coefficient.size()
+    //     auto maxLength = static_cast<Signed>(maxLength_ - oldLen);
+    //     maxLength = std::max(maxLength, Signed { 1 });
+    //
+    //     auto newLen = std::uniform_int_distribution<Signed>(Signed { 1 }, maxLength)(random);
+    //     auto mutated = creator_(random, static_cast<size_t>(newLen), 1, 1);
+    //
+    //     std::ranges::copy(mutated.Functions, individual.Functions.begin());
+    //     std::ranges::copy(mutated.Coefficients.begin(), mutated.Coefficients.end(), individual.Coefficients.begin());
+    //     std::ranges::copy(mutated.Polynomials.begin(), mutated.Polynomials.end(), individual.Polynomials.begin());
+    //
+    //     return individual;
+    // }
+
     auto ReplaceInteractionMutation::operator()(Turingforge::RandomGenerator& random, Individual individual) const -> Individual
     {
-        auto oldLen = individual.Length + 1U;
+        if (individual.Length == 0) {
+            return individual;  // No interactions to replace
+        }
+
+        // Select a random interaction to replace
+        std::uniform_int_distribution<size_t> dist(0, individual.Length - 1);
+        size_t replaceIndex = dist(random);
 
         using Signed = std::make_signed<size_t>::type;
 
-        // the correction below is necessary because it can happen that maxLength_ < coefficient.size()
+        // Generate a new interaction
+        auto oldLen = individual.Length + 1U;
         auto maxLength = static_cast<Signed>(maxLength_ - oldLen);
         maxLength = std::max(maxLength, Signed { 1 });
+        auto newLen = std::uniform_int_distribution<Signed>(Signed{1}, Signed{maxLength})(random);
+        auto newInteraction = creator_(random, static_cast<size_t>(newLen), 1, 1);
 
-        auto newLen = std::uniform_int_distribution<Signed>(Signed { 1 }, maxLength)(random);
-        auto mutated = creator_(random, static_cast<size_t>(newLen), 1, 1);
+        // Replace the Function
+        if (replaceIndex < individual.Functions.size() && !newInteraction.Functions.empty()) {
+            individual.Functions[replaceIndex] = newInteraction.Functions[0];
+        }
 
-        std::copy(mutated.Functions.begin(), mutated.Functions.end(), individual.Functions.begin());
-        std::copy(mutated.Coefficients.begin(), mutated.Coefficients.end(), individual.Coefficients.begin());
-        std::copy(mutated.Polynomials.begin(), mutated.Polynomials.end(), individual.Polynomials.begin());
+        // Replace the Coefficient
+        if (replaceIndex < individual.Coefficients.size() && !newInteraction.Coefficients.empty()) {
+            individual.Coefficients[replaceIndex] = newInteraction.Coefficients[0];
+        }
+
+        // Replace the Polynomial
+        if (replaceIndex < individual.Polynomials.size() && !newInteraction.Polynomials.empty()) {
+            individual.Polynomials[replaceIndex] = newInteraction.Polynomials[0];
+        }
 
         return individual;
     }

@@ -19,13 +19,15 @@ set(TEST_SOURCES
         test_error_metrics.cpp
         test_nondominantsort.cpp
         test_regression.cpp
+        test_crossover.cpp
 )
 
 string(REPLACE ".cpp" "" BASENAMES "${TEST_SOURCES}")
 set(TARGETS ${BASENAMES})
 
 foreach(name ${TARGETS})
-    add_executable(${name} ${name}.cpp)
+    add_executable(${name} ${name}.cpp
+            ../include/turing_forge/algorithms/solution_archive.hpp)
     target_link_libraries(${name} turingforge Catch2::Catch2WithMain)
     target_compile_features(${name} PRIVATE cxx_std_20)
 endforeach()

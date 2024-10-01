@@ -55,8 +55,7 @@ namespace Turingforge {
                 estimatedValues.resize(trainingRange.Size());
                 buf = {estimatedValues.data(), estimatedValues.size()};
             }
-            auto coeff = ind.GetCoefficients();
-            interpreter.Evaluate(coeff, trainingRange, buf);
+            interpreter.Evaluate(trainingRange, buf);
             if (scaling_) {
                 auto [a, b] = FitLeastSquaresImpl<Turingforge::Scalar>(buf, targetValues);
                 std::transform(buf.begin(), buf.end(), buf.begin(), [a = a, b = b](auto x) { return a * x + b; });
@@ -109,5 +108,24 @@ namespace Turingforge {
                 throw std::runtime_error("Unknown AggregateType");
             }
         }
+    }
+
+    template<> auto
+    BayesianInformationCriterionEvaluator<DefaultDispatch>::operator()(Turingforge::RandomGenerator& rng, Individual& ind, Turingforge::Span<Turingforge::Scalar> buf) const -> typename EvaluatorBase::ReturnType {
+        auto p = static_cast<Turingforge::Scalar>(std::ranges::count_if(ind.Functions, &Turingforge::Function::Optimize));
+        auto n = static_cast<Turingforge::Scalar>(Evaluator::GetProblem().TrainingRange().Size());
+        auto mse = Evaluator::operator()(rng, ind, buf).front();
+        auto bic = n * std::log(mse) + p * std::log(n);
+        if (!std::isfinite(bic)) { bic = EvaluatorBase::ErrMax; }
+        return typename EvaluatorBase::ReturnType { static_cast<Turingforge::Scalar>(bic) };
+    }
+
+    template<> auto
+    AkaikeInformationCriterionEvaluator<DefaultDispatch>::operator()(Turingforge::RandomGenerator& rng, Individual& ind, Turingforge::Span<Turingforge::Scalar> buf) const -> typename EvaluatorBase::ReturnType {
+        auto mse = Evaluator::operator()(rng, ind, buf).front();
+        auto n = static_cast<Turingforge::Scalar>(Evaluator::GetProblem().TrainingRange().Size());
+        auto aik = n/2 * (std::log(Turingforge::Math::Tau) + std::log(mse) + 1);
+        if (!std::isfinite(aik)) { aik = EvaluatorBase::ErrMax; }
+        return typename EvaluatorBase::ReturnType { static_cast<Turingforge::Scalar>(aik) };
     }
 } // namespace Turingforge

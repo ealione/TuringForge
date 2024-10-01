@@ -1,3 +1,5 @@
+#pragma once
+
 #include "turing_forge/core/individual.hpp"
 #include "turing_forge/core/operator.hpp"
 

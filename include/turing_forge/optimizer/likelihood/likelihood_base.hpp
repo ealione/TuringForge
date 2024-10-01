@@ -35,6 +35,8 @@ struct LikelihoodBase {
     {
     }
 
+    virtual ~LikelihoodBase() = default;
+
     [[nodiscard]] auto GetInterpreter() const -> InterpreterBase<Turingforge::Scalar> const& { return interpreter_.get(); }
 
     // compute function and gradient when called by the optimizer

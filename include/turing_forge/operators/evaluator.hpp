@@ -10,6 +10,9 @@
 #include "turing_forge/core/problem.hpp"
 #include "turing_forge/core/types.hpp"
 #include "turing_forge/interpreter/interpreter.hpp"
+#include "turing_forge/optimizer/likelihood/likelihood_base.hpp"
+#include "turing_forge/optimizer/likelihood/gaussian_likelihood.hpp"
+#include "turing_forge/optimizer/likelihood/poisson_likelihood.hpp"
 
 namespace Turingforge {
 
@@ -270,5 +273,202 @@ namespace Turingforge {
         std::reference_wrapper<EvaluatorBase const> evaluator_;
         AggregateType aggtype_{AggregateType::Mean};
     };
+
+    class LengthEvaluator : public UserDefinedEvaluator {
+    public:
+        explicit LengthEvaluator(Turingforge::Problem& problem, size_t maxlength = 1)
+            : UserDefinedEvaluator(problem, [maxlength](Turingforge::RandomGenerator& /*unused*/, Turingforge::Individual& ind) {
+                return EvaluatorBase::ReturnType { static_cast<Turingforge::Scalar>(ind.Length) / static_cast<Turingforge::Scalar>(maxlength) };
+            })
+        {
+        }
+    };
+
+    template <typename DTable, typename Lik>
+    class MinimumDescriptionLengthEvaluator final : public Evaluator<DTable> {
+        using Base = Evaluator<DTable>;
+
+    public:
+        explicit MinimumDescriptionLengthEvaluator(Turingforge::Problem& problem, DTable const& dtable)
+            : Base(problem, dtable, SSE{}), sigma_(1, 0.001)
+        {
+        }
+
+        auto Sigma() const { return std::span<Turingforge::Scalar const>{sigma_}; }
+        auto SetSigma(std::vector<Turingforge::Scalar> sigma) const { sigma_ = std::move(sigma); }
+
+        auto operator()(Turingforge::RandomGenerator& /*random*/, Individual& ind, Turingforge::Span<Turingforge::Scalar> buf) const -> typename EvaluatorBase::ReturnType override {
+            ++Base::CallCount;
+
+            auto const& problem = Base::GetProblem();
+            auto const range = problem.TrainingRange();
+            auto const& dataset = problem.GetDataset();
+            auto const& functions = ind.Functions;
+            auto const& dtable = Base::GetDispatchTable();
+
+            // this call will optimize the tree coefficients and compute the SSE
+            Turingforge::Interpreter<Turingforge::Scalar, DefaultDispatch> interpreter{dtable, dataset, ind};
+            auto parameters = ind.GetCoefficients();
+
+            auto const p { static_cast<double>(parameters.size()) };
+
+            std::vector<Turingforge::Scalar> buffer;
+            if (buf.size() < range.Size()) {
+                buffer.resize(range.Size());
+                buf = Turingforge::Span<Turingforge::Scalar>(buffer);
+            }
+
+            ++Base::ResidualEvaluations;
+            interpreter.Evaluate(parameters, range, buf);
+
+
+            // codelength of the complexity
+            // count number of unique functions
+            // - count weight * variable as three nodes
+            // - compute complexity c of the remaining numerical values
+            //   (that are not part of the coefficients that are optimized)
+            Turingforge::Set<Turingforge::Hash> uniqueFunctions; // to count the number of unique functions
+            auto k{0.0}; // number of nodes
+            auto cComplexity { 0.0 };
+
+            // codelength of the parameters
+            ++Base::JacobianEvaluations;
+            Eigen::Matrix<Turingforge::Scalar, -1, -1> j = interpreter.JacRev(parameters, range); // jacobian
+            auto estimatedValues = buf;
+            auto fisherMatrix = Lik::ComputeFisherMatrix(estimatedValues, {j.data(), static_cast<std::size_t>(j.size())}, sigma_);
+            auto fisherDiag   = fisherMatrix.diagonal().array();
+            ENSURE(fisherDiag.size() == p);
+
+            auto cParameters { 0.0 };
+            auto constexpr eps = std::numeric_limits<Turingforge::Scalar>::epsilon(); // machine epsilon for zero comparison
+
+            for (auto i = 0, j = 0; i < std::ssize(functions); ++i) {
+                auto const& n = functions[i];
+
+                // count the number of nodes and the number of unique operators
+                k += n.IsVariable() ? 3 : 1;
+                uniqueFunctions.insert(n.HashValue);
+
+                if (n.Optimize) {
+                    // this branch computes the description length of the parameters to be optimized
+                    auto const di = std::sqrt(12 / fisherDiag(j));
+                    auto const ci = std::abs(parameters[j]);
+
+                    if (!(std::isfinite(ci) && std::isfinite(di)) || ci / di < 1) {
+                        //ind.Genotype[i].Optimize = false;
+                        //auto const v = ind.Genotype[i].Value;
+                        //ind.Genotype[i].Value = 0;
+                        //auto fit = (*this)(rng, ind, buf);
+                        //ind.Genotype[i].Optimize = true;
+                        //ind.Genotype[i].Value = v;
+                        //return fit;
+                    } else {
+                        cParameters += 0.5 * std::log(fisherDiag(j)) + std::log(ci);
+                    }
+                    ++j;
+                } else {
+                    // this branch computes the description length of the remaining tree structure
+                    if (std::abs(n.Value) < eps) { continue; }
+                    cComplexity += std::log(std::abs(n.Value));
+                }
+            }
+
+            auto q { static_cast<double>(uniqueFunctions.size()) };
+            if (q > 0) { cComplexity += static_cast<double>(k) * std::log(q); }
+
+            cParameters -= p/2 * std::log(3);
+
+            auto targetValues = problem.TargetValues(problem.TrainingRange());
+            auto cLikelihood  = Lik::ComputeLikelihood(estimatedValues, targetValues, sigma_);
+            auto mdl = cComplexity + cParameters + cLikelihood;
+            if (!std::isfinite(mdl)) { mdl = EvaluatorBase::ErrMax; }
+            return typename EvaluatorBase::ReturnType { static_cast<Turingforge::Scalar>(mdl) };
+        }
+
+    private:
+        mutable std::vector<Turingforge::Scalar> sigma_;
+    };
+
+    template <typename DTable>
+    class BayesianInformationCriterionEvaluator final : public Evaluator<DTable> {
+        using Base = Evaluator<DTable>;
+
+    public:
+        explicit BayesianInformationCriterionEvaluator(Turingforge::Problem& problem, DTable const& dtable)
+            : Base(problem, dtable, MSE{})
+        {
+        }
+
+        auto
+        operator()(Turingforge::RandomGenerator& /*random*/, Individual& ind, Turingforge::Span<Turingforge::Scalar> buf) const -> typename EvaluatorBase::ReturnType override;
+    };
+
+    template <typename DTable>
+    class AkaikeInformationCriterionEvaluator final : public Evaluator<DTable> {
+        using Base = Evaluator<DTable>;
+
+    public:
+        explicit AkaikeInformationCriterionEvaluator(Turingforge::Problem& problem, DTable const& dtable)
+            : Base(problem, dtable, MSE{})
+        {
+        }
+
+        auto
+        operator()(Turingforge::RandomGenerator& /*random*/, Individual& ind, Turingforge::Span<Turingforge::Scalar> buf) const -> typename EvaluatorBase::ReturnType override;
+    };
+
+    template<typename DTable, Concepts::Likelihood Likelihood = GaussianLikelihood<Turingforge::Scalar>>
+    requires (DTable::template SupportsType<typename Likelihood::Scalar>)
+    class LikelihoodEvaluator final : public Evaluator<DTable> {
+        using Base = Evaluator<DTable>;
+
+        public:
+        explicit LikelihoodEvaluator(Turingforge::Problem& problem, DTable const& dtable)
+            : Base(problem, dtable), sigma_(1, 0.001)
+        {
+        }
+
+        auto
+        operator()(Turingforge::RandomGenerator&  /*rng*/, Individual& ind, Turingforge::Span<Turingforge::Scalar> buf) const -> typename EvaluatorBase::ReturnType override {
+            ++Base::CallCount;
+
+            auto const& problem = Base::Evaluator::GetProblem();
+            auto const range = problem.TrainingRange();
+            auto const& dataset = problem.GetDataset();
+            auto const& dtable = Base::Evaluator::GetDispatchTable();
+
+            // this call will optimize the tree coefficients and compute the SSE
+            Turingforge::Interpreter<Turingforge::Scalar, DefaultDispatch> interpreter{dtable, dataset, ind};
+
+            std::vector<Turingforge::Scalar> buffer;
+            if (buf.size() < range.Size()) {
+                buffer.resize(range.Size());
+                buf = Turingforge::Span<Turingforge::Scalar>(buffer);
+            }
+            ++Base::ResidualEvaluations;
+            interpreter.Evaluate(range, buf);
+
+            auto estimatedValues = buf;
+            auto targetValues    = problem.TargetValues(range);
+
+            auto lik = Likelihood::ComputeLikelihood(estimatedValues, targetValues, sigma_);
+            return typename EvaluatorBase::ReturnType { static_cast<Turingforge::Scalar>(lik) };
+        }
+
+        auto Sigma() const { return std::span<Turingforge::Scalar const>{sigma_}; }
+        auto SetSigma(std::vector<Turingforge::Scalar> sigma) const { sigma_ = std::move(sigma); }
+
+    private:
+        mutable std::vector<Turingforge::Scalar> sigma_;
+    };
+
+    template<typename DTable>
+    using GaussianLikelihoodEvaluator = LikelihoodEvaluator<DTable, GaussianLikelihood<Turingforge::Scalar>>;
+
+    template<typename DTable>
+    using PoissonLikelihoodEvaluator = LikelihoodEvaluator<DTable, PoissonLikelihood<Turingforge::Scalar, /*LogInput=*/false>>;
+
+    template<typename DTable>
+    using PoissonLogLikelihoodEvaluator = LikelihoodEvaluator<DTable, PoissonLikelihood<Turingforge::Scalar, /*LogInput=*/true>>;
 
 } // namespace Turingforge

@@ -46,7 +46,7 @@ struct PoissonLikelihood : public LikelihoodBase<T> {
         , target_(target)
         , range_(range)
         , batchSize_(batchSize == 0 ? range.Size() : batchSize)
-        , numParameters_{static_cast<std::size_t>(interpreter.GetTree().CoefficientsCount())}
+        , numParameters_{static_cast<std::size_t>(interpreter.GetIndividual().GetCoefficientsCount())}
         , numResiduals_{range_.Size()}
         , jac_{batchSize_, numParameters_}
     { }
@@ -65,7 +65,7 @@ struct PoissonLikelihood : public LikelihoodBase<T> {
         auto const& interpreter = this->GetInterpreter();
         Turingforge::Span<Turingforge::Scalar const> c{x.data(), static_cast<std::size_t>(x.size())};
         auto r = SelectRandomRange();
-        auto p = interpreter.Evaluate(c, r);
+        auto p = interpreter.Evaluate(r);
         auto t = target_.subspan(r.Start(), r.Size());
         auto pmap = Eigen::Map<Eigen::Array<Turingforge::Scalar, -1, 1> const>(p.data(), std::ssize(p));
         auto tmap = Eigen::Map<Eigen::Array<Turingforge::Scalar, -1, 1> const>(t.data(), std::ssize(t));

@@ -3,6 +3,8 @@
 #include <catch2/matchers/catch_matchers_vector.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 
+#include "turing_forge/algorithms/nsga2.hpp"
+#include "turing_forge/algorithms/gp.hpp"
 #include "turing_forge/core/dataset.hpp"
 #include "turing_forge/core/primitive_set.hpp"
 #include "turing_forge/formatter/formatter.hpp"
@@ -16,9 +18,10 @@
 #include "turing_forge/operators/non_dominated_sorter.hpp"
 #include "turing_forge/operators/mutation.hpp"
 #include "turing_forge/operators/crossover.hpp"
+#include "turing_forge/operators/generator.hpp"
+#include "turing_forge/algorithms/config.hpp"
 
-TEST_CASE("Poisson Regression")
-{
+TEST_CASE("Poisson Regression") {
     constexpr auto nrows = 30;
     constexpr auto ncols = 2;
 
@@ -43,7 +46,7 @@ TEST_CASE("Poisson Regression")
     problem.ConfigurePrimitiveSet(Turingforge::PrimitiveSet::Unary);
 
     // parameters
-    constexpr auto pc{1.0};
+    constexpr auto pc{.0};
     constexpr auto pm{0.25};
 
     constexpr auto maxLength{30UL};
@@ -76,4 +79,63 @@ TEST_CASE("Poisson Regression")
 
     constexpr auto maxEvaluations{1'000'000};
     constexpr auto maxGenerations{1'000};
+
+    Turingforge::LengthEvaluator lengthEvaluator{problem, maxLength};
+
+    Turingforge::DefaultDispatch dt;
+    using Likelihood = Turingforge::PoissonLikelihood<Turingforge::Scalar, /*LogInput*/ true>;
+    Turingforge::LikelihoodEvaluator<decltype(dt), Likelihood> poissonEvaluator{problem, dt};
+    poissonEvaluator.SetBudget(maxEvaluations);
+
+    Turingforge::MultiEvaluator evaluator{problem};
+    evaluator.SetBudget(maxEvaluations);
+    evaluator.Add(poissonEvaluator);
+    evaluator.Add(lengthEvaluator);
+
+    // Turingforge::LevenbergMarquardtOptimizer<decltype(dt)> optimizer{dt, problem};
+    Turingforge::SGDOptimizer<decltype(dt), Likelihood> optimizer{dt, problem};
+    // Turingforge::LBFGSOptimizer<decltype(dt), Turingforge::PoissonLikelihood<>> optimizer{dt, problem};
+    optimizer.SetIterations(100);
+
+    Turingforge::LexicographicalComparison lc;
+    Turingforge::TournamentSelector selector{lc};
+    Turingforge::CoefficientOptimizer co{optimizer};
+
+    Turingforge::BasicOffspringGenerator gen{evaluator, crossover, mutator, selector, selector, &co};
+    Turingforge::RankIntersectSorter rankSorter;
+    Turingforge::KeepBestReinserter reinserter{lc};
+
+    Turingforge::AlgorithmConfig config{};
+    config.Generations = maxGenerations;
+    config.Evaluations = maxEvaluations;
+    config.PopulationSize = 10;
+    config.PoolSize = 10;
+    config.CrossoverProbability = pc;
+    config.MutationProbability = pm;
+    config.Seed = 1234;
+    config.TimeLimit = std::numeric_limits<size_t>::max();
+
+    Turingforge::NSGA2 algorithm{problem, config, individualInitializer, coeffInitializer, gen, reinserter, rankSorter};
+    auto report = [&](){
+        fmt::print("{} {}\n", algorithm.Generation(), std::size_t{poissonEvaluator.CallCount});
+    };
+
+    algorithm.Run(rng, report);
+    fmt::print("{}\n", poissonEvaluator.TotalEvaluations());
+
+    // validate results
+     Turingforge::AkaikeInformationCriterionEvaluator<decltype(dt)> aicEvaluator{problem, dt};
+
+     for (auto ind : algorithm.Best()) {
+         auto a = poissonEvaluator(rng, ind, {});
+
+         Turingforge::Interpreter<Turingforge::Scalar, decltype(dt)> interpreter(dt, ds, ind);
+         auto est = interpreter.Evaluate(problem.TrainingRange());
+         auto tgt = problem.TargetValues(problem.TrainingRange());
+
+         auto b = Likelihood::ComputeLikelihood(est, tgt, poissonEvaluator.Sigma());
+         auto c = aicEvaluator(rng, ind, {});
+
+         fmt::print("{}: {} {} {}\n", Turingforge::IndividualFormatter::Format(ind, ds), a, b, c);
+     }
 }

@@ -205,6 +205,7 @@ namespace Turingforge {
         uint16_t Length;                // 0-65535
         FunctionType Type;
         bool IsEnabled;
+        bool Optimize;
 
         Function() = default;
         Function(const Function& other) = default;
@@ -223,6 +224,7 @@ namespace Turingforge {
 
             Length = Arity;
             IsEnabled = true;
+            Optimize = false;
             Value = 1.;
         }
 

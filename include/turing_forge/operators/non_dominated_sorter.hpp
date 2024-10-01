@@ -16,6 +16,8 @@ namespace Turingforge {
     public:
         using Result = std::vector<std::vector<size_t>>;
 
+        virtual ~NondominatedSorterBase() = default;
+
         mutable struct {
             size_t LexicographicalComparisons{0}; // both lexicographical and single-objective
             size_t SingleValueComparisons{0};
@@ -30,7 +32,7 @@ namespace Turingforge {
         void Reset() { Stats = {0, 0, 0, 0, 0, 0., 0.}; }
 
         // this method needs to be implemented by all deriving classes
-        virtual auto Sort(Turingforge::Span<Turingforge::Individual const>, Turingforge::Scalar) const -> Result = 0;
+        [[nodiscard]] virtual auto Sort(Turingforge::Span<Turingforge::Individual const>, Turingforge::Scalar) const -> Result = 0;
 
         auto
         operator()(Turingforge::Span<Turingforge::Individual const> pop, Turingforge::Scalar eps = 0) const -> Result {
@@ -39,47 +41,47 @@ namespace Turingforge {
     };
 
     struct DeductiveSorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 
     struct DominanceDegreeSorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 
     struct HierarchicalSorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 
     struct EfficientBinarySorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 
     struct EfficientSequentialSorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 
     struct MergeSorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 
     struct RankOrdinalSorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 
     struct RankIntersectSorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 
     struct BestOrderSorter : public NondominatedSorterBase {
-        auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
+        [[nodiscard]] auto Sort(Turingforge::Span<Turingforge::Individual const> pop,
                   Turingforge::Scalar eps) const -> NondominatedSorterBase::Result override;
     };
 

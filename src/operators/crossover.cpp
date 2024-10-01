@@ -16,44 +16,41 @@ namespace Turingforge {
         }
     } // namespace
 
-    static auto SelectRandomInteraction(Turingforge::RandomGenerator& random, Individual const& individual, double internalProb, Limits length) -> size_t
+    static auto SelectRandomInteraction(Turingforge::RandomGenerator& random, size_t length, double internalProb, Limits limits) -> size_t
     {
-        if (individual.Length == 1 || NotIn(length, individual.Length)) {
+        if (length <= 1 || NotIn(limits, length)) {
             return 0;
         }
 
-        std::vector<size_t> candidates(individual.Length);
-        auto head = candidates.begin();
-        auto tail = candidates.rbegin();
+        size_t start = std::min(limits.first, length - 1);
+        size_t end = std::min(limits.second, length);
 
-        // check if we have any function node candidates at all and if the bernoulli trial succeeds
-        if (tail > candidates.rbegin() && std::bernoulli_distribution(internalProb)(random)) {
-            return *Turingforge::Random::Sample(random, candidates.rbegin(), tail);
+        if (std::bernoulli_distribution(internalProb)(random)) {
+            start = (start + end) / 2;  // Select from the second half
         }
-        return *Turingforge::Random::Sample(random, candidates.begin(), head);
+
+        std::uniform_int_distribution<size_t> dist(start, end - 1);
+        return dist(random);
     }
 
-    auto IndividualCrossover::FindCompatibleSwapLocations(Turingforge::RandomGenerator& random, Individual const& lhs, Individual const& rhs) const -> std::pair<size_t, size_t>
+    auto IndividualCrossover::FindCompatibleSwapLocations(Turingforge::RandomGenerator& random, size_t lhsLength, size_t rhsLength) const -> std::pair<size_t, size_t>
     {
         using Signed = std::make_signed<size_t>::type;
-        auto diff = static_cast<Signed>(lhs.Length - maxLength_ + 1); // +1 to account for at least one node that gets swapped in
 
-        auto i = SelectRandomInteraction(random, lhs, internalProbability_, Limits{std::max(diff, Signed{1}), lhs.Length});
+        Signed iLower = std::max(Signed{1}, static_cast<Signed>(lhsLength) - static_cast<Signed>(maxLength_) + 1);
+        size_t i = SelectRandomInteraction(random, lhsLength, internalProbability_, {static_cast<size_t>(iLower), lhsLength});
 
-        auto partialTreeLength = lhs.Length - 1;
-        auto maxBranchLength = static_cast<Signed>(maxLength_ - partialTreeLength);
-        maxBranchLength = std::max(maxBranchLength, Signed{1});
+        Signed jUpper = std::max(Signed{1}, static_cast<Signed>(maxLength_) - static_cast<Signed>(lhsLength) + static_cast<Signed>(i) + 1);
+        size_t j = SelectRandomInteraction(random, rhsLength, internalProbability_, {1, static_cast<size_t>(jUpper)});
 
-        auto j = SelectRandomInteraction(random, rhs, internalProbability_, Limits{1UL, maxBranchLength});
-        return std::make_pair(i, j);
+        return {i, j};
     }
 
     auto IndividualCrossover::operator()(Turingforge::RandomGenerator& random, const Individual& lhs, const Individual& rhs) const -> Individual
     {
-        auto [i, j] = FindCompatibleSwapLocations(random, lhs, rhs);
+        auto [i, j] = FindCompatibleSwapLocations(random, lhs.Length, rhs.Length);
         auto child = Cross(lhs, rhs, i, j);
 
-        // TODO: `maxLength_` type?
         auto maxLength{std::max(static_cast<uint16_t>(maxLength_), lhs.Length)};
 
         ENSURE(child.Length <= maxLength);

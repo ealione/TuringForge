@@ -52,6 +52,7 @@ namespace Turingforge {
                 res.Parent1 = pop[FemaleSelector()(random)];
             }
 
+            // Crossover
             using BernoulliTrial = std::bernoulli_distribution;
             if (BernoulliTrial{pCrossover}(random)) {
                 if (!res.Parent2) {
@@ -60,6 +61,7 @@ namespace Turingforge {
                 res.Child = Crossover()(random, res.Parent1.value(), res.Parent2.value());
             }
 
+            // Mutation
             if (BernoulliTrial{pMutation}(random)) {
                 if (res.Child) {
                     res.Child = Mutator()(random, std::move(res.Child.value()));
@@ -68,6 +70,9 @@ namespace Turingforge {
                 }
             }
 
+            if (!res.Child) res.Child = res.Parent1;
+
+            // Local optimization
             if (BernoulliTrial{pLocal}(random)) {
                 auto summary = (*coeffOptimizer_)(random, res.Child.value());
                 Evaluator().ResidualEvaluations += summary.FunctionEvaluations;

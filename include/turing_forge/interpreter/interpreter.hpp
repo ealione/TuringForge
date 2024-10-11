@@ -217,7 +217,6 @@ namespace Turingforge {
                     // first compute the partials
                     if (trace && nodeDerivative) {
                         std::invoke(*nodeDerivative, individual.Functions, primal_, trace_, i, i);
-                        std::cout << trace;
                     }
 
                     // apply weight after partials are computed

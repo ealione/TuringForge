@@ -21,6 +21,10 @@ include(EVEConfig)
 # Eigen
 include(EigenConfig)
 
+# Jemalloc
+#TODO: Fix this
+#include(JemallocConfig)
+
 # Fast float
 FetchContent_Declare(
         fast_float
@@ -109,3 +113,30 @@ FetchContent_MakeAvailable(taskflow)
 
 add_library(taskflow INTERFACE)
 target_include_directories(taskflow INTERFACE ${taskflow_SOURCE_DIR})
+
+FetchContent_Declare(
+        libassert
+        GIT_REPOSITORY https://github.com/jeremy-rifkin/libassert.git
+        GIT_TAG        v2.1.2 # <HASH or TAG>
+)
+FetchContent_MakeAvailable(libassert)
+
+FetchContent_Declare(
+        scnlib
+        GIT_REPOSITORY https://github.com/eliaskosunen/scnlib.git
+        GIT_TAG        v3.0.1
+)
+FetchContent_MakeAvailable(scnlib)
+
+FetchContent_Declare(
+        cxxopts
+        GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+        GIT_TAG        v3.2.1
+)
+FetchContent_GetProperties(cxxopts)
+if(NOT cxxopts_POPULATED)
+    FetchContent_MakeAvailable(
+            cxxopts
+    )
+endif()
+set(CXXOPTS_INCLUDE_DIR "${cxxopts_SOURCE_DIR}/include")

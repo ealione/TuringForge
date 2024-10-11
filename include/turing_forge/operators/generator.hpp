@@ -73,7 +73,7 @@ namespace Turingforge {
             if (!res.Child) res.Child = res.Parent1;
 
             // Local optimization
-            if (BernoulliTrial{pLocal}(random)) {
+            if (coeffOptimizer_ != nullptr && BernoulliTrial{pLocal}(random)) {
                 auto summary = (*coeffOptimizer_)(random, res.Child.value());
                 Evaluator().ResidualEvaluations += summary.FunctionEvaluations;
                 Evaluator().JacobianEvaluations += summary.JacobianEvaluations;

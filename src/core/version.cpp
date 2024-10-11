@@ -1,4 +1,4 @@
-#include "turing_forge/core/buildinfo.hpp"
+#include "turing_forge/core/buildinfo.hpp.in"
 #include "turing_forge/core/version.hpp"
 
 

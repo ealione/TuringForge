@@ -1,7 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_vector.hpp>
-#include <catch2/matchers/catch_matchers.hpp>
 
 #include "turing_forge/algorithms/nsga2.hpp"
 #include "turing_forge/algorithms/gp.hpp"
@@ -67,15 +66,15 @@ TEST_CASE("Poisson Regression") {
     Turingforge::OnePointMutation<Normal> onePoint{};
     onePoint.ParameterizeDistribution(0.F, 1.F);
     Turingforge::ChangeFunctionMutation changeFunc { problem.GetPrimitiveSet() };
-    Turingforge::ReplaceInteractionMutation replaceSubtree { creator, coeffInitializer, maxLength };
-    Turingforge::InsertInteractionMutation insertSubtree { creator, coeffInitializer, maxLength };
-    Turingforge::RemoveInteractionMutation removeSubtree { problem.GetPrimitiveSet() };
+    Turingforge::ReplaceInteractionMutation replaceInteraction {creator, coeffInitializer, maxLength };
+    Turingforge::InsertInteractionMutation insertInteraction {creator, coeffInitializer, maxLength };
+    Turingforge::RemoveInteractionMutation removeInteraction {problem.GetPrimitiveSet() };
 
     mutator.Add(onePoint, 1.0);
     mutator.Add(changeFunc, 1.0);
-    mutator.Add(replaceSubtree, 1.0);
-    mutator.Add(insertSubtree, 1.0);
-    mutator.Add(removeSubtree, 1.0);
+    mutator.Add(replaceInteraction, 1.0);
+    mutator.Add(insertInteraction, 1.0);
+    mutator.Add(removeInteraction, 1.0);
 
     constexpr auto maxEvaluations{1'000'000};
     constexpr auto maxGenerations{1'000};

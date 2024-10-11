@@ -20,51 +20,47 @@ public:
     auto operator()(Turingforge::RandomGenerator& random, const Individual& lhs, const Individual& rhs) const -> Individual override;
     auto FindCompatibleSwapLocations(Turingforge::RandomGenerator& random, size_t lhsLength, size_t rhsLength) const -> std::pair<size_t, size_t>;
 
-    static inline auto Cross(const Individual& lhs, const Individual& rhs, size_t i, size_t j) -> Individual {
+    static inline auto Cross(const Individual& lhs, const Individual& rhs, size_t i, size_t j, size_t maxLength) -> Individual {
         auto const& left = lhs;
         auto const& right = rhs;
         using signed_t = std::make_signed_t<size_t>;
 
-        // Calculate the sizes for each part
-        size_t leftPrefixSize = i;
-        size_t rightSuffixSize = right.Length - j;
-        size_t leftSuffixSize = left.Length - i;
+        // Ensure crossover points are within bounds
+        i = std::min(i, static_cast<size_t>(left.Length) - 1);
+        j = std::min(j, static_cast<size_t>(right.Length) - 1);
 
-        // Calculate the total sizes needed
-        size_t totalSize = leftPrefixSize + rightSuffixSize + leftSuffixSize;
+        // Calculate the sizes for each part
+        size_t leftSize = i;
+        size_t rightSize = right.Length - j;
 
         // Create the new vectors with the correct size
-        Vector<Scalar> coefficients(totalSize);
-        Vector<Function> functions(totalSize);
-        Vector<Vector<Scalar>> polynomials(totalSize);
+        size_t childSize = std::min(i + (right.Length - j), maxLength);
+        Vector<Scalar> coefficients(childSize);
+        Vector<Function> functions(childSize);
+        Vector<Vector<Scalar>> polynomials(childSize);
 
         auto copyRange = [](const auto& source, auto& dest, size_t sourceStart, size_t count, size_t destStart) {
-            std::copy_n(source.begin() + static_cast<signed_t>(sourceStart), count, dest.begin() + static_cast<signed_t>(destStart));
+            std::copy_n(source.begin() + static_cast<std::make_signed_t<size_t>>(sourceStart),
+                        std::min(count, dest.size() - destStart),
+                        dest.begin() + static_cast<std::make_signed_t<size_t>>(destStart));
         };
 
-        // Copy left prefix
-        copyRange(left.Coefficients, coefficients, 0, leftPrefixSize, 0);
-        copyRange(left.Functions, functions, 0, leftPrefixSize, 0);
-        copyRange(left.Polynomials, polynomials, 0, leftPrefixSize, 0);
+        // Copy left part
+        copyRange(left.Coefficients, coefficients, 0, leftSize, 0);
+        copyRange(left.Functions, functions, 0, leftSize, 0);
+        copyRange(left.Polynomials, polynomials, 0, leftSize, 0);
 
-        // Copy right suffix
-        copyRange(right.Coefficients, coefficients, j, rightSuffixSize, leftPrefixSize);
-        copyRange(right.Functions, functions, j, rightSuffixSize, leftPrefixSize);
-        copyRange(right.Polynomials, polynomials, j, rightSuffixSize, leftPrefixSize);
-
-        // Copy left suffix
-        size_t leftSuffixStart = i;
-        size_t destSuffixStart = leftPrefixSize + rightSuffixSize;
-        copyRange(left.Coefficients, coefficients, leftSuffixStart, leftSuffixSize, destSuffixStart);
-        copyRange(left.Functions, functions, leftSuffixStart, leftSuffixSize, destSuffixStart);
-        copyRange(left.Polynomials, polynomials, leftSuffixStart, leftSuffixSize, destSuffixStart);
+        // Copy right part
+        copyRange(right.Coefficients, coefficients, j, rightSize, leftSize);
+        copyRange(right.Functions, functions, j, rightSize, leftSize);
+        copyRange(right.Polynomials, polynomials, j, rightSize, leftSize);
 
         // Create and return the new Individual
         Individual child;
         child.Coefficients = std::move(coefficients);
         child.Functions = std::move(functions);
         child.Polynomials = std::move(polynomials);
-        child.Length = totalSize;
+        child.Length = childSize;
 
         return child;
     }

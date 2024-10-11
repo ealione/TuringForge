@@ -24,9 +24,9 @@ function(set_compiler_flags TARGET)
         target_compile_options(${TARGET} PRIVATE
                 $<$<CONFIG:Debug>:
                 #-march=x86-64 -mavx2 -mfma -Og -fanalyzer -ggdb -Wall -Wextra -Wpedantic -Wmissing-field-initializers -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -Wlogical-op -Wenum-conversion -Wdouble-promotion -Wconversion -Wshadow -Wno-psabi -Wno-variadic-macros -Wno-long-long -fno-check-new -fno-common -fstrict-aliasing>
-                -march=native -mavx2 -mfma -Og -ggdb -Wall -Wextra -Wpedantic>
+                -march=native -mavx2 -mfma -O0 -fno-inline -ggdb -Wall -Wextra -Wpedantic>
                 $<$<CONFIG:Release>:
-                -Ofast -DNDEBUG -march=native -mavx2 -mfma>
+                -Ofast -DNDEBUG -fsized-deallocation -fno-math-errno -march=x86-64-v3>
                 $<$<CONFIG:RelWithDebInfo>:
                 -g -O2 -march=native -mavx2 -mfma>
         )

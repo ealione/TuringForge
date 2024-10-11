@@ -48,10 +48,10 @@ namespace Turingforge {
 
     auto IndividualCrossover::operator()(Turingforge::RandomGenerator& random, const Individual& lhs, const Individual& rhs) const -> Individual
     {
-        auto [i, j] = FindCompatibleSwapLocations(random, lhs.Length, rhs.Length);
-        auto child = Cross(lhs, rhs, i, j);
-
         auto maxLength{std::max(static_cast<uint16_t>(maxLength_), lhs.Length)};
+
+        auto [i, j] = FindCompatibleSwapLocations(random, lhs.Length, rhs.Length);
+        auto child = Cross(lhs, rhs, i, j, maxLength);
 
         ENSURE(child.Length <= maxLength);
 

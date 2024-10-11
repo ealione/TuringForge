@@ -47,8 +47,8 @@ option(TURINGFORGE_USE_ASAN "Build with Address Sanitizer" OFF)
 
 if(TURINGFORGE_USE_ASAN)
     message("Building with Address Sanitizer checks!")
-    target_compile_options(turingforge PUBLIC -fsanitize=address -fno-omit-frame-pointer)
-    target_link_options(turingforge PUBLIC -fsanitize=address)
+    target_compile_options(turingforge PUBLIC -fsanitize=thread -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(turingforge PUBLIC -fsanitize=thread -fsanitize=address)
 endif()
 
 # Enable modern C++ features
@@ -58,9 +58,9 @@ target_compile_features(turingforge PRIVATE cxx_auto_type)
 # Link Libraries
 target_link_libraries(turingforge
         PUBLIC
-            fmt::fmt unordered_dense::unordered_dense std::mdspan
+            fmt::fmt unordered_dense::unordered_dense std::mdspan libassert::assert taskflow
         PRIVATE
-            xxhash fast_float cpp-sort::cpp-sort taskflow
+            xxhash fast_float cpp-sort::cpp-sort
 )
 
 # Add dependencies to TuringForge

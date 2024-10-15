@@ -161,14 +161,8 @@ namespace Turingforge {
         [[nodiscard]] auto GetDispatchTable() const { return dtable_.get(); }
 
         static inline auto Evaluate(Turingforge::Individual const& individual, Turingforge::Dataset const& dataset, Turingforge::Range const range) {
-            auto coeff = individual.GetCoefficients();
             DTable dt;
-            return Interpreter{dt, dataset, individual}.Evaluate(coeff, range);
-        }
-
-        static inline auto Evaluate(Turingforge::Individual const& individual, Turingforge::Dataset const& dataset, Turingforge::Range const range, Turingforge::Span<T const> coeff) {
-            DTable dt;
-            return Interpreter{dt, dataset, individual}.Evaluate(coeff, range);
+            return Interpreter{dt, dataset, individual}.Evaluate(range);
         }
 
     private:

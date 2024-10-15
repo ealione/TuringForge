@@ -121,7 +121,7 @@ class TinySolver {
     // (new_cost - old_cost) < function_tolerance * old_cost
     COST_CHANGE_TOO_SMALL,
 
-    // TODO(sameeragarwal): Deal with numerical failures.
+    // TODO: Deal with numerical failures.
   };
 
   struct Options {
@@ -172,9 +172,6 @@ class TinySolver {
 
     // This explicitly computes the normal equations, which is numerically
     // unstable. Nevertheless, it is often good enough and is fast.
-    //
-    // TODO(sameeragarwal): Refactor this to allow for DenseQR
-    // factorization.
     jacobian_ = jacobian_ * jacobi_scaling_.asDiagonal();
     jtj_ = jacobian_.transpose() * jacobian_;
     g_ = jacobian_.transpose() * residuals_;
@@ -190,7 +187,7 @@ class TinySolver {
     summary = Summary();
     summary.iterations = 0;
 
-    // TODO(sameeragarwal): Deal with failure here.
+    // TODO: Deal with failure here.
     Update(function, x);
     summary.initial_cost = cost_;
     summary.final_cost = cost_;
@@ -220,7 +217,7 @@ class TinySolver {
         jtj_regularized_(i, i) += lm_diagonal_[i] * lm_diagonal_[i];
       }
 
-      // TODO(sameeragarwal): Check for failure and deal with it.
+      // TODO: Check for failure and deal with it.
       linear_solver_.compute(jtj_regularized_);
       lm_step_ = linear_solver_.solve(g_);
       dx_ = jacobi_scaling_.asDiagonal() * lm_step_;
@@ -241,7 +238,7 @@ class TinySolver {
       function(&x_new_[0], &f_x_new_[0], nullptr);
 
       const Scalar cost_change = (2 * cost_ - f_x_new_.squaredNorm());
-      // TODO(sameeragarwal): Better more numerically stable evaluation.
+      // TODO: Better more numerically stable evaluation.
       const Scalar model_cost_change = lm_step_.dot(2 * g_ - jtj_ * lm_step_);
 
       // rho is the ratio of the actual reduction in error to the reduction
@@ -259,7 +256,7 @@ class TinySolver {
           break;
         }
 
-        // TODO(sameeragarwal): Deal with failure.
+        // TODO: Deal with failure.
         Update(function, x);
         if (summary.gradient_max_norm < options.gradient_tolerance) {
           summary.status = GRADIENT_TOO_SMALL;

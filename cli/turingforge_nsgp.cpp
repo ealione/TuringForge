@@ -200,12 +200,12 @@ auto main(int argc, char** argv) -> int
             dynamic_cast<Turingforge::OnePointMutation<Dist>*>(onePoint.get())->ParameterizeDistribution(Turingforge::Scalar{0}, Turingforge::Scalar{1});
         }
 
-        Turingforge::IndividualCrossover crossover{ crossoverInternalProbability, maxDepth, maxLength };
+        Turingforge::IndividualCrossover crossover{ crossoverInternalProbability, maxLength };
         Turingforge::MultiMutation mutator{};
 
         Turingforge::ChangeFunctionMutation changeFunc { problem.GetPrimitiveSet() };
-        Turingforge::ReplaceInteractionMutation replaceInteraction { *creator, *coeffInitializer, maxDepth, maxLength };
-        Turingforge::InsertInteractionMutation insertInteraction { *creator, *coeffInitializer, maxDepth, maxLength };
+        Turingforge::ReplaceInteractionMutation replaceInteraction { *creator, *coeffInitializer, maxLength };
+        Turingforge::InsertInteractionMutation insertInteraction { *creator, *coeffInitializer, maxLength };
         Turingforge::RemoveInteractionMutation removeInteraction { problem.GetPrimitiveSet() };
         Turingforge::DiscretePointMutation discretePoint;
         for (auto v : Turingforge::Math::Constants) {
@@ -232,7 +232,7 @@ auto main(int argc, char** argv) -> int
         evaluator.Add(*errorEvaluator);
         evaluator.Add(lengthEvaluator);
 
-                EXPECT(problem.TrainingRange().Size() > 0);
+        EXPECT(problem.TrainingRange().Size() > 0);
 
         Turingforge::CrowdedComparison comp;
 
@@ -268,8 +268,8 @@ auto main(int argc, char** argv) -> int
             return *minElem;
         };
 
-        Turingforge::Individual best(1);
-        auto getSize = [](Turingforge::Individual const& ind) { return sizeof(ind) + sizeof(ind.Genotype) + sizeof(Turingforge::Node) * ind.Genotype.Nodes().capacity(); };
+        Turingforge::Individual best;
+        auto getSize = [](Turingforge::Individual const& ind) { return sizeof(ind) + sizeof(ind) + sizeof(Turingforge::Function); };
 
         auto report = [&]() {
             auto const& pop = gp.Parents();
@@ -299,19 +299,11 @@ auto main(int argc, char** argv) -> int
                 auto [a_, b_] = Turingforge::FitLeastSquares(estimatedTrain, targetTrain);
                 a = static_cast<Turingforge::Scalar>(a_);
                 b = static_cast<Turingforge::Scalar>(b_);
-                // add scaling terms to the tree
-                auto& nodes = best;
-                auto const sz = nodes.size();
-                if (std::abs(a - Turingforge::Scalar{1}) > std::numeric_limits<Turingforge::Scalar>::epsilon()) {
-                    nodes.emplace_back(Turingforge::Constant(a));
-                    nodes.emplace_back(Turingforge::FunctionType::Mul);
-                }
-                if (std::abs(b) > std::numeric_limits<Turingforge::Scalar>::epsilon()) {
-                    nodes.emplace_back(Turingforge::Constant(b));
-                    nodes.emplace_back(Turingforge::FunctionType::Add);
-                }
-                if (nodes.size() > sz) {
-                    best.UpdateNodes();
+                // add scaling terms to the individual
+                auto& individual = best;
+                // Scale all coefficients by 'a'
+                for (auto& coeff : individual.Coefficients) {
+                    coeff *= a;
                 }
             });
 
@@ -348,7 +340,7 @@ auto main(int argc, char** argv) -> int
             double avgQuality = 0;
             double totalMemory = 0;
 
-            auto calculateLength = taskflow.transform_reduce(pop.begin(), pop.end(), avgLength, std::plus{}, [](auto const& ind) { return ind.Genotype.Length(); });
+            auto calculateLength = taskflow.transform_reduce(pop.begin(), pop.end(), avgLength, std::plus{}, [](auto const& ind) { return ind.Length; });
             auto calculateQuality = taskflow.transform_reduce(pop.begin(), pop.end(), avgQuality, std::plus{}, [idx=idx](auto const& ind) { return ind[idx]; });
             auto calculatePopMemory = taskflow.transform_reduce(pop.begin(), pop.end(), totalMemory, std::plus{}, [&](auto const& ind) { return getSize(ind); });
             auto calculateOffMemory = taskflow.transform_reduce(off.begin(), off.end(), totalMemory, std::plus{}, [&](auto const& ind) { return getSize(ind); });

@@ -26,7 +26,7 @@ struct LMCostFunction {
         , target_{target}
         , range_{range}
         , numResiduals_{range.Size()}
-        , numParameters_{static_cast<std::size_t>(interpreter.GetTree().Coefficients.size())}
+        , numParameters_{static_cast<std::size_t>(interpreter.GetIndividual().Coefficients.size())}
     { }
 
     inline auto Evaluate(Scalar const* parameters, Scalar* residuals, Scalar* jacobian) const -> bool // NOLINT

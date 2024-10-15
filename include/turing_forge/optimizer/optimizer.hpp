@@ -127,6 +127,116 @@ struct LevenbergMarquardtOptimizer : public OptimizerBase {
     std::reference_wrapper<DTable const> dtable_;
 };
 
+template <typename DTable>
+struct LevenbergMarquardtOptimizer<DTable, OptimizerType::Eigen> final : public OptimizerBase {
+    explicit LevenbergMarquardtOptimizer(DTable const& dtable, Problem const& problem)
+            : OptimizerBase{problem}, dtable_{dtable}
+    {
+    }
+
+    [[nodiscard]] auto Optimize(Turingforge::RandomGenerator& /*unused*/, Turingforge::Individual const& individual) const -> OptimizerSummary final
+    {
+        auto const& dtable = this->GetDispatchTable();
+        auto const& problem = this->GetProblem();
+        auto const& dataset = problem.GetDataset();
+        auto range  = problem.TrainingRange();
+        auto target = problem.TargetValues(range);
+        auto iterations = this->Iterations();
+
+        Turingforge::Interpreter<Turingforge::Scalar, DTable> interpreter{dtable, dataset, individual};
+        Turingforge::LMCostFunction<Turingforge::Scalar> cf{interpreter, target, range};
+        Eigen::LevenbergMarquardt<decltype(cf)> lm(cf);
+        lm.setMaxfev(static_cast<int>(iterations+1));
+
+        auto x0 = individual.GetCoefficients();
+        OptimizerSummary summary;
+        summary.InitialParameters = x0;
+        if (!x0.empty()) {
+            Eigen::Map<Eigen::Matrix<Turingforge::Scalar, -1, 1>> m0(x0.data(), std::ssize(x0));
+            Eigen::Matrix<Turingforge::Scalar, -1, 1> m = m0;
+
+            // do the minimization loop manually because we want to extract the initial cost
+            Eigen::LevenbergMarquardtSpace::Status status = lm.minimizeInit(m);
+            summary.InitialCost = summary.FinalCost = lm.fnorm() * lm.fnorm() * 0.5; // get the initial cost after calling minimizeInit()
+            if (status != Eigen::LevenbergMarquardtSpace::ImproperInputParameters) {
+                do {
+                    status = lm.minimizeOneStep(m);
+                } while (status == Eigen::LevenbergMarquardtSpace::Running);
+            }
+            m0 = m;
+        }
+        summary.FinalParameters = x0;
+        summary.FinalCost = lm.fnorm() * lm.fnorm();
+        summary.Iterations = static_cast<int>(lm.iterations());
+        summary.FunctionEvaluations = static_cast<int>(lm.nfev());
+        summary.JacobianEvaluations = static_cast<int>(lm.njev());
+        summary.Success = detail::CheckSuccess(summary.InitialCost, summary.FinalCost);
+        return summary;
+    }
+
+    auto GetDispatchTable() const -> DTable const& { return dtable_.get(); }
+
+    [[nodiscard]] auto ComputeLikelihood(Turingforge::Span<Turingforge::Scalar const> x, Turingforge::Span<Turingforge::Scalar const> y, Turingforge::Span<Turingforge::Scalar const> w) const -> Turingforge::Scalar final
+    {
+        return GaussianLikelihood<Turingforge::Scalar>::ComputeLikelihood(x, y, w);
+    }
+
+    [[nodiscard]] auto ComputeFisherMatrix(Turingforge::Span<Turingforge::Scalar const> pred, Turingforge::Span<Turingforge::Scalar const> jac, Turingforge::Span<Turingforge::Scalar const> sigma) const -> Eigen::Matrix<Turingforge::Scalar, -1, -1> final {
+        return GaussianLikelihood<Turingforge::Scalar>::ComputeFisherMatrix(pred, jac, sigma);
+    }
+
+private:
+    std::reference_wrapper<DTable const> dtable_;
+};
+
+#if defined(HAVE_CERES)
+template <typename T = Turingforge::Scalar>
+struct NonlinearLeastSquaresOptimizer<T, OptimizerType::Ceres> : public OptimizerBase<T> {
+explicit NonlinearLeastSquaresOptimizer(InterpreterBase<T>& interpreter)
+    : OptimizerBase<T>{interpreter}
+{
+}
+
+auto Optimize(Turingforge::Span<Turingforge::Scalar const> target, Range range, size_t iterations, OptimizerSummary& summary) -> std::vector<Turingforge::Scalar> final
+{
+    auto const& individual = this->GetTree();
+    auto const& ds = this->GetDataset();
+    auto const& dt = this->GetDispatchTable();
+
+    auto x0 = individual.GetCoefficients();
+
+    Turingforge::CostFunction<DTable, Eigen::RowMajor> cf(individual, ds, target, range, dt);
+    auto costFunction = new Turingforge::DynamicCostFunction(cf); // NOLINT
+
+    ceres::Solver::Summary s;
+    if (!x0.empty()) {
+        Eigen::Map<Eigen::Matrix<Turingforge::Scalar, -1, 1>> m0(x0.data(), std::ssize(x0));
+        auto sz = static_cast<Eigen::Index>(x0.size());
+        Eigen::VectorXd params = Eigen::Map<Eigen::Matrix<Turingforge::Scalar, -1, 1>>(x0.data(), sz).template cast<double>();
+        ceres::Problem problem;
+        problem.AddResidualBlock(costFunction, nullptr, params.data());
+        ceres::Solver::Options options;
+        options.linear_solver_type = ceres::DENSE_QR;
+        options.logging_type = ceres::LoggingType::SILENT;
+        options.max_num_iterations = static_cast<int>(iterations - 1); // workaround since for some reason ceres sometimes does 1 more iteration
+        options.minimizer_progress_to_stdout = false;
+        options.num_threads = 1;
+        options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
+        options.use_inner_iterations = false;
+        Solve(options, &problem, &s);
+        m0 = params.cast<Turingforge::Scalar>();
+    }
+    summary.InitialCost = s.initial_cost;
+    summary.FinalCost = s.final_cost;
+    summary.Iterations = static_cast<int>(s.iterations.size());
+    summary.FunctionEvaluations = s.num_residual_evaluations;
+    summary.JacobianEvaluations = s.num_jacobian_evaluations;
+    summary.Success = detail::CheckSuccess(summary.InitialCost, summary.FinalCost);
+    return x0;
+}
+};
+#endif
+
 template<typename DTable, Concepts::Likelihood LossFunction = GaussianLikelihood<Turingforge::Scalar>>
 struct SGDOptimizer final : public OptimizerBase {
     SGDOptimizer(DTable const& dtable, Problem const& problem)

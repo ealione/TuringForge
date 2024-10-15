@@ -12,7 +12,7 @@
 #include "turing_forge/core/operator.hpp"          // for OperatorBase
 #include "turing_forge/core/problem.hpp"           // for Problem
 #include "turing_forge/core/range.hpp"             // for Range
-#include "turing_forge/core/individual.hpp"        // for Tree
+#include "turing_forge/core/individual.hpp"        // for Individual
 #include "turing_forge/operators/initializer.hpp"  // for CoefficientInitializerBase
 #include "turing_forge/operators/reinserter.hpp"   // for ReinserterBase
 

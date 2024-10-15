@@ -22,6 +22,9 @@ namespace Turingforge {
         // domination rank
         size_t Rank{};
 
+        // crowding distance;
+        Turingforge::Scalar Distance{};
+
         // number of nodes (Functions to be applied)
         uint16_t Length = 0UL; // 0-65535
 
@@ -256,7 +259,16 @@ namespace Turingforge {
             return ParetoDominance{}(fit1.begin(), fit1.end(), fit2.begin(), fit2.end(), eps) == Dominance::Left;
         }
     };
-    
+
+    struct CrowdedComparison {
+        auto operator()(Individual const& lhs, Individual const& rhs, Turingforge::Scalar eps = 0) const -> bool
+        {
+            EXPECT(std::size(lhs.Fitness) == std::size(rhs.Fitness));
+            if (lhs.Rank != rhs.Rank) { return lhs.Rank < rhs.Rank; }
+            return Turingforge::Less{}(rhs.Distance, lhs.Distance, eps);
+        }
+    };
+
     using ComparisonCallback = std::function<bool(Individual const&, Individual const&)>;
 
 } // namespace Turingforge

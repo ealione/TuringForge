@@ -23,6 +23,37 @@
 #include "turing_forge/operators/reinserter.hpp"           // for ReinserterBase
 
 namespace Turingforge {
+    auto NSGA2::UpdateDistance(Turingforge::Span<Individual> pop) -> void
+    {
+        // assign distance. each front is sorted for each objective
+        size_t m = pop.front().Fitness.size();
+        auto inf = std::numeric_limits<Turingforge::Scalar>::max();
+        for (size_t i = 0; i < fronts_.size(); ++i) {
+            auto& front = fronts_[i];
+            for (size_t obj = 0; obj < m; ++obj) {
+                SingleObjectiveComparison comp(obj);
+                std::stable_sort(front.begin(), front.end(), [&](auto a, auto b) { return comp(pop[a], pop[b]); });
+                auto min = pop.front()[obj];
+                auto max = pop.back()[obj];
+                for (size_t j = 0; j < front.size(); ++j) {
+                    auto idx = front[j];
+
+                    pop[idx].Rank = i;
+                    if (obj == 0) {
+                        pop[idx].Distance = 0;
+                    }
+
+                    auto mPrev = j > 0 ? pop[j - 1][obj] : inf;
+                    auto mNext = j < front.size() - 1 ? pop[j + 1][obj] : inf;
+                    auto distance = (mNext - mPrev) / (max - min);
+                    if (!std::isfinite(distance)) {
+                        distance = 0;
+                    }
+                    pop[idx].Distance += distance;
+                }
+            }
+        }
+    }
 
     auto NSGA2::Sort(Turingforge::Span<Individual> pop) -> void
     {
